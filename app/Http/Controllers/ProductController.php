@@ -13,6 +13,7 @@ class ProductController extends Controller
 
         return view('products.index', [
             'products' => $products,
+            'cartLines' => $cart->lines(),
             'cartSummary' => $cart->summary(),
         ]);
     }

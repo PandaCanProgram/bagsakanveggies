@@ -90,6 +90,7 @@ class CartService
                 'product_id' => $productId,
                 'variant_index' => $variantIndex,
                 'name' => $product->name,
+                'swatch' => $product->swatchColor(),
                 'variant_label' => $variant['label'],
                 'unit_price' => $variant['price'],
                 'qty' => $qty,
