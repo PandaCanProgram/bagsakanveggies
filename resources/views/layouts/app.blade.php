@@ -22,7 +22,5 @@
     @endif
 
     @yield('content')
-
-    <button type="button" class="help-fab" title="Need help? Contact BagsakanVeggies support.">?</button>
 </body>
 </html>

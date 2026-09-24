@@ -70,7 +70,7 @@
 
                         @foreach ($product->variants as $i => $variant)
                             <div class="variant-row">
-                                <div>
+                                <div class="variant-info">
                                     <div class="variant-label">{{ $variant['label'] }}</div>
                                     <div class="variant-price">₱{{ number_format($variant['price']) }}</div>
                                 </div>
