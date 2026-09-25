@@ -507,6 +507,12 @@ button:disabled { cursor: not-allowed; }
   border-top: 1px solid var(--line);
 }
 
+#products {
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
 .section-head {
   display: flex;
   flex-wrap: wrap;
