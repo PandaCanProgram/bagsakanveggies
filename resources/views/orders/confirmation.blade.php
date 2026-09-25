@@ -25,14 +25,7 @@
                         <x-icon name="alert" size="18" />
                         <span>Don't edit the message — just tap <strong>Send</strong> so we get your full order details.</span>
                     </p>
-                    <p class="fine-print">Opening Messenger automatically…</p>
                 </div>
-
-                <script>
-                    setTimeout(function () {
-                        window.location.href = document.getElementById('messenger-link').href;
-                    }, 1200);
-                </script>
             @else
                 <p class="page-lede">We'll confirm your order via SMS shortly.</p>
             @endif

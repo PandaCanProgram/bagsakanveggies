@@ -152,4 +152,51 @@ document.addEventListener('alpine:init', () => {
             this.loading = false;
         },
     }));
+
+    // Checkout: "Place order" opens a review dialog first; the form only submits from there.
+    Alpine.data('checkout', () => ({
+        submitting: false,
+        reviewing: false,
+        confirmed: false,
+        details: {},
+
+        onSubmit(event) {
+            if (this.confirmed) {
+                this.submitting = true;
+                return;
+            }
+
+            event.preventDefault();
+            this.openReview();
+        },
+
+        openReview() {
+            const data = new FormData(this.$refs.form);
+            const date = data.get('preferred_date');
+            const time = data.get('preferred_time');
+
+            this.details = {
+                full_name: data.get('full_name'),
+                contact_number: data.get('contact_number'),
+                delivery_address: data.get('delivery_address'),
+                order_notes: (data.get('order_notes') || '').trim(),
+                date: date
+                    ? new Date(date + 'T00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+                    : '',
+                time: time
+                    ? new Date('1970-01-01T' + time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
+                    : '',
+            };
+            this.reviewing = true;
+        },
+
+        closeReview() {
+            if (!this.submitting) this.reviewing = false;
+        },
+
+        confirm() {
+            this.confirmed = true;
+            this.$nextTick(() => this.$refs.form.requestSubmit());
+        },
+    }));
 });

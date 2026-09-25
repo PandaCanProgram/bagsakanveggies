@@ -13,7 +13,7 @@
 @section('content')
     <div
         class="container checkout"
-        x-data="{ submitting: false }"
+        x-data="checkout"
         x-effect="if ($store.cart.lines.length === 0) window.location.href = @js(route('products.index'))"
     >
         <div class="page-head">
@@ -37,7 +37,7 @@
                 </div>
             </aside>
 
-            <form class="checkout-form" method="POST" action="{{ route('orders.store') }}" @submit="submitting = true">
+            <form class="checkout-form" method="POST" action="{{ route('orders.store') }}" x-ref="form" @submit="onSubmit($event)">
                 @csrf
 
                 @if ($errors->any())
@@ -163,14 +163,14 @@
                         <span>Order total</span>
                         <strong x-text="peso($store.cart.summary.total)">₱{{ number_format($summary['total']) }}</strong>
                     </div>
-                    <button type="submit" class="btn btn-primary btn-lg btn-block" :disabled="submitting || $store.cart.busy">
-                        <span x-text="submitting ? 'Placing order…' : 'Place order'">Place order</span>
+                    <button type="submit" class="btn btn-primary btn-lg btn-block" :disabled="submitting || $store.cart.busy" aria-haspopup="dialog">
+                        Place order
                     </button>
-                    @if ($messengerPageUrl)
-                        <p class="fine-print">Next, we'll open Messenger so you can send us your order for confirmation.</p>
-                    @endif
+                    <p class="fine-print">You'll review your order before it's sent.</p>
                 </div>
             </form>
         </div>
+
+        @include('checkout.partials.review-dialog')
     </div>
 @endsection

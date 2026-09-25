@@ -60,6 +60,11 @@ class OrderController extends Controller
 
         $cart->clear();
 
+        // The customer already reviewed everything in the checkout dialog, so go straight to Messenger.
+        if ($messengerUrl = $order->load('items')->messengerUrl()) {
+            return redirect()->away($messengerUrl);
+        }
+
         return redirect()->route('orders.confirmation', $order);
     }
 

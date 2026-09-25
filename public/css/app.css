@@ -794,6 +794,83 @@ button:disabled { cursor: not-allowed; }
 
 .drawer-foot .totals { margin-top: 0; padding-top: 0; border-top: 0; }
 
+/* Checkout review dialog (reuses drawer head/foot)
+   ========================================================================== */
+
+.review-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 61;
+  display: flex;
+  flex-direction: column;
+  width: min(560px, calc(100% - 32px));
+  max-height: calc(100dvh - 48px);
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow-3);
+  transform: translate(-50%, -50%);
+}
+
+.review-enter { transition: opacity 0.24s var(--ease-out), transform 0.24s var(--ease-out); }
+.review-leave { transition: opacity 0.16s ease-in, transform 0.16s ease-in; }
+.review-closed { opacity: 0; transform: translate(-50%, calc(-50% + 16px)); }
+.review-opened { opacity: 1; transform: translate(-50%, -50%); }
+
+.review-body {
+  flex: 1;
+  display: grid;
+  gap: 24px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 20px 24px 24px;
+}
+
+.review-heading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 1.0625rem;
+}
+
+.review-body .receipt { margin-top: 4px; }
+
+.review-details {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px 20px;
+  margin-top: 12px;
+}
+
+.review-details dd { overflow-wrap: anywhere; white-space: pre-line; }
+.review-span { grid-column: 1 / -1; }
+
+.review-actions {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 10px;
+}
+
+@media (max-width: 640px) {
+  .review-dialog {
+    top: auto;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    max-height: calc(100dvh - 24px);
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    transform: none;
+  }
+
+  .review-closed { transform: translateY(100%); opacity: 1; }
+  .review-opened { transform: translateY(0); }
+
+  .review-body { padding: 16px 20px 20px; }
+  .review-details { grid-template-columns: 1fr; }
+  .review-actions { grid-template-columns: 1fr; }
+  .review-actions .btn-secondary { order: 2; }
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
