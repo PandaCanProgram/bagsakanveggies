@@ -22,5 +22,6 @@
 
     <div class="container footer-base">
         <p>&copy; {{ date('Y') }} BagsakanVeggies</p>
+        <p>Powered by AVX</p>
     </div>
 </footer>
