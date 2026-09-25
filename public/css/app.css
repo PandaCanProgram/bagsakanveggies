@@ -1319,6 +1319,26 @@ textarea.input { resize: vertical; }
 .callout svg { margin-top: 1px; }
 .messenger-cta .fine-print { text-align: left; }
 
+.backup-message {
+  display: grid;
+  gap: 10px;
+  max-width: 420px;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px dashed var(--line-strong);
+}
+
+.backup-title { margin: 0; font-weight: 600; }
+.backup-text { margin: 0; font-size: 0.9375rem; color: var(--ink-2); }
+.backup-text a { color: var(--messenger); font-weight: 600; }
+
+.backup-textarea {
+  font-size: 0.875rem;
+  line-height: 1.45;
+  resize: vertical;
+  background: var(--paper);
+}
+
 .confirm-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

@@ -160,6 +160,17 @@ document.addEventListener('alpine:init', () => {
         confirmed: false,
         details: {},
 
+        init() {
+            // Coming back with the browser's Back button can restore this page frozen mid-submit; reset it.
+            window.addEventListener('pageshow', (event) => {
+                if (event.persisted) {
+                    this.submitting = false;
+                    this.confirmed = false;
+                    this.reviewing = false;
+                }
+            });
+        },
+
         onSubmit(event) {
             if (this.confirmed) {
                 this.submitting = true;
@@ -194,9 +205,44 @@ document.addEventListener('alpine:init', () => {
             if (!this.submitting) this.reviewing = false;
         },
 
-        confirm() {
-            this.confirmed = true;
-            this.$nextTick(() => this.$refs.form.requestSubmit());
+        async confirm() {
+            if (this.submitting) return;
+            this.submitting = true;
+
+            const form = this.$refs.form;
+            const isDesktop = !window.matchMedia('(pointer: coarse)').matches;
+
+            // Desktop: open the Messenger tab now, while we still have the click; browsers block tabs opened later.
+            const messengerTab = isDesktop ? window.open('', '_blank') : null;
+
+            try {
+                const res = await fetch(form.action, {
+                    method: 'POST',
+                    headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    body: new FormData(form),
+                });
+
+                if (!res.ok) throw new Error('Order request failed');
+
+                const data = await res.json();
+
+                if (messengerTab && data.messenger_url) {
+                    messengerTab.opener = null;
+                    messengerTab.location.href = data.messenger_url;
+                } else {
+                    messengerTab?.close();
+                }
+
+                // Phones: the thank-you page opens the Messenger app itself, so Back returns to that page.
+                const openHere = !isDesktop && data.messenger_url ? '#open-messenger' : '';
+                window.location.replace(data.confirmation_url + openHere);
+            } catch (error) {
+                messengerTab?.close();
+
+                // Fall back to a normal submit so the server can show any validation errors.
+                this.confirmed = true;
+                this.$nextTick(() => form.requestSubmit());
+            }
         },
     }));
 });

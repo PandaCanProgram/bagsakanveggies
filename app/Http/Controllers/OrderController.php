@@ -6,6 +6,7 @@ use App\Models\Order;
 use App\Services\CartService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\URL;
 
 class OrderController extends Controller
 {
@@ -60,12 +61,18 @@ class OrderController extends Controller
 
         $cart->clear();
 
-        // The customer already reviewed everything in the checkout dialog, so go straight to Messenger.
-        if ($messengerUrl = $order->load('items')->messengerUrl()) {
-            return redirect()->away($messengerUrl);
+        // Signed so only the customer who placed the order can open its thank-you page.
+        $confirmationUrl = URL::signedRoute('orders.confirmation', $order);
+
+        // Checkout submits in the background, then opens Messenger itself (a new tab on desktop).
+        if ($request->expectsJson()) {
+            return response()->json([
+                'confirmation_url' => $confirmationUrl,
+                'messenger_url' => $order->load('items')->messengerUrl(),
+            ]);
         }
 
-        return redirect()->route('orders.confirmation', $order);
+        return redirect($confirmationUrl);
     }
 
     public function confirmation(Order $order)

@@ -15,7 +15,9 @@ Route::post('/cart/remove', [CartController::class, 'remove'])->name('cart.remov
 
 Route::get('/checkout', [CheckoutController::class, 'index'])->name('checkout.index');
 Route::post('/checkout', [OrderController::class, 'store'])->name('orders.store');
-Route::get('/orders/{order}/confirmation', [OrderController::class, 'confirmation'])->name('orders.confirmation');
+Route::get('/orders/{order}/confirmation', [OrderController::class, 'confirmation'])
+    ->middleware('signed')
+    ->name('orders.confirmation');
 
 Route::get('/product-photos/{path}', [ProductPhotoController::class, 'show'])
     ->where('path', 'products/[A-Za-z0-9_-]+\.[A-Za-z0-9]+')

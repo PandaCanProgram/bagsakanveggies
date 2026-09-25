@@ -72,4 +72,69 @@ class StorefrontTest extends TestCase
             ->assertSee('name="contact_number"', false)
             ->assertSee('Place order');
     }
+
+    /**
+     * @return array<string, string>
+     */
+    protected function orderDetails(): array
+    {
+        return [
+            'full_name' => 'Juan Dela Cruz',
+            'contact_number' => '09171234567',
+            'delivery_address' => '123 Mabini St., Quezon City',
+            'preferred_date' => now()->addDay()->toDateString(),
+            'preferred_time' => '09:00',
+        ];
+    }
+
+    protected function cartWithCarrots(): void
+    {
+        $carrots = $this->makeProduct('Fresh Carrots');
+
+        $this->postJson(route('cart.add'), [
+            'product_id' => $carrots->id,
+            'items' => [['variant_index' => 0, 'qty' => 2]],
+        ]);
+    }
+
+    public function test_placing_an_order_returns_the_thank_you_page_and_messenger_link(): void
+    {
+        config(['services.facebook.page_id' => '12345']);
+        $this->cartWithCarrots();
+
+        $response = $this->postJson(route('orders.store'), $this->orderDetails())->assertOk();
+
+        $this->assertStringStartsWith('https://m.me/12345?text=', $response->json('messenger_url'));
+
+        $this->get($response->json('confirmation_url'))
+            ->assertOk()
+            ->assertSee('Thank you for ordering, Juan Dela Cruz!')
+            ->assertSee('Copy message')
+            ->assertSee('Fresh Carrots (10 kg bag) x2', false);
+    }
+
+    public function test_placing_an_order_without_javascript_redirects_to_the_thank_you_page(): void
+    {
+        $this->cartWithCarrots();
+
+        $this->post(route('orders.store'), $this->orderDetails())
+            ->assertRedirectContains('/confirmation?signature=');
+    }
+
+    public function test_thank_you_page_needs_the_signed_link(): void
+    {
+        $this->cartWithCarrots();
+        $url = $this->postJson(route('orders.store'), $this->orderDetails())->json('confirmation_url');
+
+        $this->get(strtok($url, '?'))->assertForbidden();
+    }
+
+    public function test_invalid_order_details_are_rejected(): void
+    {
+        $this->cartWithCarrots();
+
+        $this->postJson(route('orders.store'), ['contact_number' => '123'] + $this->orderDetails())
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('contact_number');
+    }
 }

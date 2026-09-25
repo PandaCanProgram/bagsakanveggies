@@ -11,21 +11,62 @@
         <section class="panel confirm-hero">
             <span class="confirm-icon"><x-icon name="check" size="28" /></span>
             <p class="eyebrow">Order #{{ $order->id }}</p>
-            <h1 class="page-title">Thanks, {{ $order->full_name }}. We've received your order.</h1>
+            <h1 class="page-title">Thank you for ordering, {{ $order->full_name }}!</h1>
 
-            @if ($order->messengerUrl())
-                <p class="page-lede">Message us on Messenger to confirm your order and arrange GCash payment.</p>
+            @if ($messengerUrl = $order->messengerUrl())
+                <p class="page-lede">
+                    <strong>One last step:</strong> send us your order on Messenger so we can confirm it.
+                    Your order message is already typed — just tap <strong>Send</strong>.
+                </p>
 
                 <div class="messenger-cta">
-                    <a href="{{ $order->messengerUrl() }}" id="messenger-link" class="btn btn-messenger btn-lg btn-block">
+                    <a href="{{ $messengerUrl }}" id="messenger-link" class="btn btn-messenger btn-lg btn-block" target="_blank" rel="noopener">
                         <x-icon name="message" />
                         Message us on Messenger
                     </a>
-                    <p class="callout">
-                        <x-icon name="alert" size="18" />
-                        <span>Don't edit the message — just tap <strong>Send</strong> so we get your full order details.</span>
-                    </p>
                 </div>
+
+                <div class="backup-message" x-data="{ copied: false }">
+                    <p class="backup-title">Didn't send it, or the message came out empty?</p>
+                    <p class="backup-text">
+                        Tap <strong>Copy message</strong>, open
+                        @if ($messengerPageUrl)
+                            <a href="{{ $messengerPageUrl }}" target="_blank" rel="noopener">our Messenger</a>,
+                        @else
+                            our Messenger,
+                        @endif
+                        then paste it and tap Send.
+                    </p>
+                    <textarea x-ref="text" class="input backup-textarea" rows="8" readonly aria-label="Your order message">{{ $order->messengerText() }}</textarea>
+                    <button
+                        type="button"
+                        class="btn btn-secondary btn-block"
+                        @click="
+                            const text = $refs.text.value;
+                            const done = () => { copied = true; setTimeout(() => copied = false, 2500); };
+                            if (navigator.clipboard && window.isSecureContext) {
+                                navigator.clipboard.writeText(text).then(done);
+                            } else {
+                                $refs.text.select();
+                                document.execCommand('copy');
+                                done();
+                            }
+                        "
+                    >
+                        <x-icon name="check" size="18" x-show="copied" x-cloak />
+                        <span x-text="copied ? 'Copied!' : 'Copy message'">Copy message</span>
+                    </button>
+                </div>
+
+                <script>
+                    // Phones arrive with #open-messenger: open the Messenger app once, and keep this page for when they come back.
+                    if (window.location.hash === '#open-messenger') {
+                        history.replaceState(null, '', window.location.pathname + window.location.search);
+                        setTimeout(function () {
+                            window.location.href = document.getElementById('messenger-link').href;
+                        }, 700);
+                    }
+                </script>
             @else
                 <p class="page-lede">We'll confirm your order via SMS shortly.</p>
             @endif
