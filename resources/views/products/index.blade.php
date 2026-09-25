@@ -16,7 +16,7 @@
     <section class="hero" aria-labelledby="hero-title">
         <div class="container hero-inner">
             <div class="hero-copy">
-                <p class="eyebrow">Metro Manila delivery</p>
+                <p class="eyebrow">Quezon City delivery</p>
                 <h1 id="hero-title" class="hero-title">Fresh vegetables, by the bag or by the kilo.</h1>
                 <p class="hero-lede">
                     Stock up with 10&nbsp;kg bags for your store or kitchen, or order just a few kilos for home.

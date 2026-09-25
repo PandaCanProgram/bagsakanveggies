@@ -114,10 +114,22 @@
                                         </time>
                                     </td>
                                     <td class="a-cell-actions">
-                                        <a href="{{ route('admin.products.edit', $product) }}" class="a-btn a-btn-secondary a-btn-sm">
-                                            <x-admin.icon name="pencil" :size="16" />
-                                            Edit <span class="sr-only">{{ $product->name }}</span>
-                                        </a>
+                                        <div class="a-row-actions">
+                                            <a href="{{ route('admin.products.edit', $product) }}" class="a-btn a-btn-secondary a-btn-sm">
+                                                <x-admin.icon name="pencil" :size="16" />
+                                                Edit <span class="sr-only">{{ $product->name }}</span>
+                                            </a>
+                                            {{-- Submits the matching delete form below (forms can't nest inside the price form). --}}
+                                            <button
+                                                type="submit"
+                                                form="delete-product-{{ $product->id }}"
+                                                class="a-icon-btn a-icon-btn-danger"
+                                                title="Delete {{ $product->name }}"
+                                                aria-label="Delete {{ $product->name }}"
+                                            >
+                                                <x-admin.icon name="trash" :size="18" />
+                                            </button>
+                                        </div>
                                     </td>
                                 </tr>
                             @endforeach
@@ -151,5 +163,18 @@
                 </div>
             </div>
         </form>
+
+        @foreach ($products as $product)
+            <form
+                id="delete-product-{{ $product->id }}"
+                method="POST"
+                action="{{ route('admin.products.destroy', $product) }}"
+                onsubmit="return confirm(@js('Delete '.$product->name.'? It will be removed from the store. Past orders keep their details.'))"
+                hidden
+            >
+                @csrf
+                @method('DELETE')
+            </form>
+        @endforeach
     @endif
 @endsection

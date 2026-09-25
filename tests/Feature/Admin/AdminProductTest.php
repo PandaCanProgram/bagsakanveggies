@@ -2,6 +2,7 @@
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -271,5 +272,62 @@ class AdminProductTest extends TestCase
 
         $this->assertSame(0, Product::count());
         $this->assertEmpty(Storage::disk('public')->allFiles());
+    }
+
+    public function test_admin_can_delete_a_veggie_and_its_photo(): void
+    {
+        Storage::fake('public');
+        $product = $this->makeProduct('Fresh Carrots');
+        $path = $this->photo()->store('products', 'public');
+        $product->forceFill(['image_path' => $path])->save();
+
+        $this->actingAs($this->admin)
+            ->delete(route('admin.products.destroy', $product))
+            ->assertRedirect(route('admin.products.index'));
+
+        $this->assertModelMissing($product);
+        Storage::disk('public')->assertMissing($path);
+        $this->get(route('products.index'))->assertDontSee('Fresh Carrots');
+    }
+
+    public function test_deleting_a_veggie_keeps_past_orders_intact(): void
+    {
+        $product = $this->makeProduct('Fresh Carrots');
+        $order = Order::create([
+            'full_name' => 'Juan Dela Cruz',
+            'contact_number' => '09171234567',
+            'delivery_address' => 'Brgy 1',
+            'preferred_date' => now()->toDateString(),
+            'preferred_time' => '09:00',
+            'payment_method' => 'Cash on Delivery',
+            'subtotal' => 700,
+            'delivery_fee' => 0,
+            'total' => 700,
+        ]);
+        $item = $order->items()->create([
+            'product_id' => $product->id,
+            'product_name' => 'Fresh Carrots',
+            'variant_label' => '10 kg bag',
+            'unit_price' => 700,
+            'qty' => 1,
+            'line_total' => 700,
+        ]);
+
+        $this->actingAs($this->admin)->delete(route('admin.products.destroy', $product));
+
+        $item->refresh();
+        $this->assertNull($item->product_id);
+        $this->assertSame('Fresh Carrots', $item->product_name);
+    }
+
+    public function test_non_admins_cannot_delete_a_veggie(): void
+    {
+        $product = $this->makeProduct('Fresh Carrots');
+
+        $this->actingAs(User::factory()->create())
+            ->delete(route('admin.products.destroy', $product))
+            ->assertForbidden();
+
+        $this->assertModelExists($product);
     }
 }

@@ -15,6 +15,6 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::redirect('/', '/admin/products')->name('home');
 
         Route::patch('/products/prices', [ProductController::class, 'updatePrices'])->name('products.prices.update');
-        Route::resource('products', ProductController::class)->except(['show', 'destroy']);
+        Route::resource('products', ProductController::class)->except(['show']);
     });
 });

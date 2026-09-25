@@ -59,8 +59,12 @@
 html {
   -webkit-text-size-adjust: 100%;
   scroll-behavior: smooth;
-  scroll-padding-top: calc(var(--header-h) + 16px);
 }
+
+/* Keep anchor targets clear of the sticky header. This is set on the targets, not as scroll-padding on html,
+   because html padding made the browser scroll to the top whenever focus returned to the header's cart button. */
+main,
+main [id] { scroll-margin-top: calc(var(--header-h) + 16px); }
 
 body {
   margin: 0;

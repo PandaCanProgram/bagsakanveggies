@@ -74,6 +74,18 @@ class ProductController extends Controller
             ->with('status', "Saved changes to {$product->name}.");
     }
 
+    public function destroy(Product $product): RedirectResponse
+    {
+        $product->delete();
+
+        if ($product->image_path) {
+            Storage::disk('public')->delete($product->image_path);
+        }
+
+        return redirect()->route('admin.products.index')
+            ->with('status', "{$product->name} was deleted and is no longer on the store.");
+    }
+
     /**
      * Save every changed price from the price list in one go.
      */

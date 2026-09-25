@@ -1035,3 +1035,21 @@ td.a-col-updated { padding-top: 36px !important; }
     scroll-behavior: auto !important;
   }
 }
+
+/* Delete section on the edit page */
+.a-danger-zone {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-top: var(--space-6);
+  border-color: color-mix(in srgb, var(--color-destructive) 35%, var(--color-border, transparent));
+}
+
+.a-row-actions { display: inline-flex; align-items: center; gap: var(--space-2); }
+
+/* Line the delete card up with the form column (the preview sits beside it on wide screens) */
+@media (min-width: 961px) {
+  .a-danger-zone { max-width: calc(100% - 320px - var(--space-6)); }
+}

@@ -21,7 +21,7 @@
     <div class="announcement">
         <div class="container announcement-inner">
             <x-icon name="truck" size="18" />
-            <p>Order before <strong>12:00 NN</strong> for <strong>same-day delivery</strong> in Metro Manila.</p>
+            <p>Order before <strong>12:00 NN</strong> for <strong>same-day delivery</strong> in Quezon City.</p>
         </div>
     </div>
 

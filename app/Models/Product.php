@@ -56,19 +56,26 @@ class Product extends Model
     }
 
     /**
-     * Effective price per kilo for a multi-kilo variant (e.g. "10 kg bag"), or null when not applicable.
+     * Effective price per kilo for a sized variant (e.g. "10 kg bag", "per .5kg", "1/2 kg"),
+     * or null when it's already priced per kilo or has no size.
      */
     public function pricePerKilo(int $index): ?float
     {
         $variant = $this->variant($index);
 
-        if (! $variant || ! preg_match('/(\d+(?:\.\d+)?)\s*kg/i', $variant['label'], $matches)) {
+        if (! $variant || ! preg_match('/(?:(\d+)\s*\/\s*(\d+)|(\d*\.?\d+))\s*(kg|kilos?|g|grams?)\b/i', $variant['label'], $matches)) {
             return null;
         }
 
-        $kilos = (float) $matches[1];
+        $kilos = $matches[1] !== ''
+            ? (float) $matches[1] / max((float) $matches[2], 1)
+            : (float) $matches[3];
 
-        return $kilos > 1 ? $variant['price'] / $kilos : null;
+        if (str_starts_with(strtolower($matches[4]), 'g')) {
+            $kilos /= 1000;
+        }
+
+        return $kilos > 0 && $kilos != 1 ? $variant['price'] / $kilos : null;
     }
 
     /**

@@ -5,7 +5,7 @@
                 <span class="brand-mark"><x-icon name="sprout" size="20" /></span>
                 <span class="brand-word">Bagsakan<span>Veggies</span></span>
             </a>
-            <p>Fresh vegetables by the bag or by the kilo, delivered around Metro Manila.</p>
+            <p>Fresh vegetables by the bag or by the kilo, delivered around Quezon City.</p>
         </div>
 
         <ul class="footer-facts">
