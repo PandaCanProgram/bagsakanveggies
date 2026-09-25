@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -34,6 +35,14 @@ class AdminProductTest extends TestCase
             ],
             'sort_order' => $sortOrder,
         ]);
+    }
+
+    /**
+     * The faked public disk, typed so editors know about its test assertions (assertExists, assertMissing).
+     */
+    protected function publicDisk(): FilesystemAdapter
+    {
+        return Storage::disk('public');
     }
 
     /**
@@ -189,7 +198,7 @@ class AdminProductTest extends TestCase
         $okra = Product::where('name', 'Fresh Okra')->firstOrFail();
 
         $this->assertNotNull($okra->image_path);
-        Storage::disk('public')->assertExists($okra->image_path);
+        $this->publicDisk()->assertExists($okra->image_path);
 
         $this->get(route('products.index'))->assertSee($okra->imageUrl(), false);
         $this->get($okra->imageUrl())->assertOk();
@@ -223,8 +232,8 @@ class AdminProductTest extends TestCase
         $product->refresh();
 
         $this->assertNotSame($oldPath, $product->image_path);
-        Storage::disk('public')->assertMissing($oldPath);
-        Storage::disk('public')->assertExists($product->image_path);
+        $this->publicDisk()->assertMissing($oldPath);
+        $this->publicDisk()->assertExists($product->image_path);
     }
 
     public function test_admin_can_remove_a_photo(): void
@@ -243,7 +252,7 @@ class AdminProductTest extends TestCase
             ->assertRedirect(route('admin.products.index'));
 
         $this->assertNull($product->refresh()->image_path);
-        Storage::disk('public')->assertMissing($path);
+        $this->publicDisk()->assertMissing($path);
     }
 
     public function test_saving_without_a_new_photo_keeps_the_current_one(): void
@@ -262,7 +271,7 @@ class AdminProductTest extends TestCase
             ->assertRedirect(route('admin.products.index'));
 
         $this->assertSame($path, $product->refresh()->image_path);
-        Storage::disk('public')->assertExists($path);
+        $this->publicDisk()->assertExists($path);
     }
 
     public function test_photo_must_be_an_image(): void
@@ -297,7 +306,7 @@ class AdminProductTest extends TestCase
             ->assertRedirect(route('admin.products.index'));
 
         $this->assertModelMissing($product);
-        Storage::disk('public')->assertMissing($path);
+        $this->publicDisk()->assertMissing($path);
         $this->get(route('products.index'))->assertDontSee('Fresh Carrots');
     }
 
