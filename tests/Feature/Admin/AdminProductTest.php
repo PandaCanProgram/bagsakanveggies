@@ -192,6 +192,17 @@ class AdminProductTest extends TestCase
         Storage::disk('public')->assertExists($okra->image_path);
 
         $this->get(route('products.index'))->assertSee($okra->imageUrl(), false);
+        $this->get($okra->imageUrl())->assertOk();
+    }
+
+    public function test_photo_route_only_serves_existing_product_photos(): void
+    {
+        Storage::fake('public');
+        Storage::disk('public')->put('secret.txt', 'nope');
+
+        $this->get('/product-photos/products/missing.png')->assertNotFound();
+        $this->get('/product-photos/secret.txt')->assertNotFound();
+        $this->get('/product-photos/products/..%2Fsecret.txt')->assertNotFound();
     }
 
     public function test_replacing_a_photo_deletes_the_old_file(): void

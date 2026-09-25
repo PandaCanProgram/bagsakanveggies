@@ -83,6 +83,6 @@ class Product extends Model
      */
     public function imageUrl(): ?string
     {
-        return $this->image_path ? asset('storage/'.$this->image_path) : null;
+        return $this->image_path ? route('product-photos.show', $this->image_path) : null;
     }
 }
