@@ -1506,11 +1506,8 @@ textarea.input { resize: vertical; }
 }
 
 @media (max-width: 767px) {
-  /* Phones: logo + cart on the first row, the menu links on a small second row */
-  .header-inner { flex-wrap: wrap; row-gap: 2px; min-height: 0; padding-block: 10px 4px; }
-  .primary-nav { order: 3; width: 100%; margin: 0 0 0 -10px; gap: 2px; }
-  main [id] { scroll-margin-top: 116px; }
-  .primary-nav a { padding: 6px 10px; font-size: 0.875rem; }
+  /* Phones: just the logo and the cart (client prefers no menu links here) */
+  .primary-nav { display: none; }
   .cart-button { margin-left: auto; }
 
   /* Room for the floating "View cart" bar goes inside the footer, so the dark footer reaches the bottom
