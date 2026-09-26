@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Order placed — BagsakanVeggies')
+@section('title', 'Order placed — Bagsakan Veggies Phils')
 
 @section('header')
     @include('partials.site-header', ['minimal' => true])
@@ -74,20 +74,22 @@
 
         <div class="confirm-grid">
             <section class="panel" aria-labelledby="delivery-title">
-                <h2 id="delivery-title" class="panel-title">Delivery</h2>
+                <h2 id="delivery-title" class="panel-title">Details</h2>
                 <dl class="detail-list">
                     <div>
-                        <dt>Address</dt>
+                        <dt>Delivery address</dt>
                         <dd>{{ $order->delivery_address }}</dd>
                     </div>
                     <div>
-                        <dt>Preferred date</dt>
-                        <dd>{{ $order->preferred_date->format('F j, Y') }}</dd>
+                        <dt>CP or Viber</dt>
+                        <dd>{{ $order->contact_number }}</dd>
                     </div>
-                    <div>
-                        <dt>Preferred time</dt>
-                        <dd>{{ \Carbon\Carbon::parse($order->preferred_time)->format('g:i A') }}</dd>
-                    </div>
+                    @if ($order->preferred_date && $order->preferred_time)
+                        <div>
+                            <dt>Preferred delivery</dt>
+                            <dd>{{ $order->preferred_date->format('F j, Y') }}, {{ \Carbon\Carbon::parse($order->preferred_time)->format('g:i A') }}</dd>
+                        </div>
+                    @endif
                     <div>
                         <dt>Payment</dt>
                         <dd>{{ $order->payment_method }}</dd>
@@ -102,24 +104,24 @@
                         <li>
                             <div>
                                 <p class="receipt-name">{{ $item->product_name }}</p>
-                                <p class="receipt-meta">{{ $item->variant_label }} · {{ $item->qty }} × ₱{{ number_format($item->unit_price) }}</p>
+                                <p class="receipt-meta">{{ $item->variant_label }} · {{ \App\Support\Format::qty($item->qty) }} × {{ \App\Support\Format::peso($item->unit_price) }}</p>
                             </div>
-                            <span class="receipt-total">₱{{ number_format($item->line_total) }}</span>
+                            <span class="receipt-total">{{ \App\Support\Format::peso($item->line_total) }}</span>
                         </li>
                     @endforeach
                 </ul>
                 <dl class="totals">
                     <div class="totals-row">
                         <dt>Subtotal</dt>
-                        <dd>₱{{ number_format($order->subtotal) }}</dd>
+                        <dd>{{ \App\Support\Format::peso($order->subtotal) }}</dd>
                     </div>
                     <div class="totals-row">
                         <dt>Delivery</dt>
-                        <dd>{{ $order->delivery_fee ? '₱'.number_format($order->delivery_fee) : 'Free' }}</dd>
+                        <dd>{{ $order->delivery_fee ? \App\Support\Format::peso($order->delivery_fee) : 'Free' }}</dd>
                     </div>
                     <div class="totals-row totals-grand">
                         <dt>Total</dt>
-                        <dd>₱{{ number_format($order->total) }}</dd>
+                        <dd>{{ \App\Support\Format::peso($order->total) }}</dd>
                     </div>
                 </dl>
             </section>

@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="theme-color" content="#163a24">
-    <title>@yield('title', 'BagsakanVeggies')</title>
+    <title>@yield('title', 'Bagsakan Veggies Phils')</title>
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ asset('images/logo-mark.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500..800&family=Instrument+Sans:wght@400..700&display=swap">
@@ -17,13 +19,6 @@
 </head>
 <body class="@yield('body-class')">
     <a href="#main" class="skip-link">Skip to content</a>
-
-    <div class="announcement">
-        <div class="container announcement-inner">
-            <x-icon name="truck" size="18" />
-            <p>Order before <strong>12:00 NN</strong> for <strong>same-day delivery</strong> in Quezon City.</p>
-        </div>
-    </div>
 
     @yield('header')
 

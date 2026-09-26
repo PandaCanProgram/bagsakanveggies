@@ -13,11 +13,11 @@ class CartController extends Controller
             'product_id' => ['required', 'integer'],
             'items' => ['required', 'array', 'min:1'],
             'items.*.variant_index' => ['required', 'integer', 'min:0'],
-            'items.*.qty' => ['required', 'integer', 'min:0'],
+            'items.*.qty' => ['required', 'numeric', 'min:0', 'max:999'],
         ]);
 
         foreach ($data['items'] as $item) {
-            $cart->add((int) $data['product_id'], (int) $item['variant_index'], (int) $item['qty']);
+            $cart->add((int) $data['product_id'], (int) $item['variant_index'], (float) $item['qty']);
         }
 
         return $this->response($cart);
@@ -28,10 +28,10 @@ class CartController extends Controller
         $data = $request->validate([
             'product_id' => ['required', 'integer'],
             'variant_index' => ['required', 'integer', 'min:0'],
-            'qty' => ['required', 'integer', 'min:0'],
+            'qty' => ['required', 'numeric', 'min:0', 'max:999'],
         ]);
 
-        $cart->updateQty((int) $data['product_id'], (int) $data['variant_index'], (int) $data['qty']);
+        $cart->updateQty((int) $data['product_id'], (int) $data['variant_index'], (float) $data['qty']);
 
         return $this->response($cart);
     }

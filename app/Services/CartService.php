@@ -19,22 +19,23 @@ class CartService
         Session::put(self::SESSION_KEY, $cart);
     }
 
-    public function add(int $productId, int $variantIndex, int $qty): void
+    public function add(int $productId, int $variantIndex, float $qty): void
     {
-        if ($qty <= 0) {
-            return;
-        }
-
         $cart = $this->raw();
         $key = "{$productId}:{$variantIndex}";
-        $cart[$key] = ($cart[$key] ?? 0) + $qty;
-        $this->save($cart);
+        $qty = $this->normalize($productId, $variantIndex, ($cart[$key] ?? 0) + $qty);
+
+        if ($qty > 0) {
+            $cart[$key] = $qty;
+            $this->save($cart);
+        }
     }
 
-    public function updateQty(int $productId, int $variantIndex, int $qty): void
+    public function updateQty(int $productId, int $variantIndex, float $qty): void
     {
         $cart = $this->raw();
         $key = "{$productId}:{$variantIndex}";
+        $qty = $this->normalize($productId, $variantIndex, $qty);
 
         if ($qty <= 0) {
             unset($cart[$key]);
@@ -43,6 +44,16 @@ class CartService
         }
 
         $this->save($cart);
+    }
+
+    /**
+     * Round to the size's step (half kilos for per-kilo sizes, whole for bags); 0 for unknown products.
+     */
+    protected function normalize(int $productId, int $variantIndex, float $qty): float
+    {
+        $product = Product::find($productId);
+
+        return $product?->variant($variantIndex) ? $product->normalizeQty($variantIndex, $qty) : 0.0;
     }
 
     public function remove(int $productId, int $variantIndex): void
@@ -93,8 +104,9 @@ class CartService
                 'swatch' => $product->swatchColor(),
                 'variant_label' => $variant['label'],
                 'unit_price' => $variant['price'],
-                'qty' => $qty,
-                'line_total' => $variant['price'] * $qty,
+                'qty' => (float) $qty,
+                'min' => $product->minQty($variantIndex),
+                'line_total' => round($variant['price'] * $qty, 2),
             ];
         }
 
@@ -106,22 +118,22 @@ class CartService
         return count($this->raw());
     }
 
-    public function totalQty(): int
+    public function totalQty(): float
     {
-        return array_sum($this->raw());
+        return (float) array_sum($this->raw());
     }
 
-    public function subtotal(): int
+    public function subtotal(): float
     {
-        return collect($this->lines())->sum('line_total');
+        return round(collect($this->lines())->sum('line_total'), 2);
     }
 
-    public function deliveryFee(): int
+    public function deliveryFee(): float
     {
         return 0;
     }
 
-    public function total(): int
+    public function total(): float
     {
         return $this->subtotal() + $this->deliveryFee();
     }

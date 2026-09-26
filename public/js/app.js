@@ -20,13 +20,40 @@ async function cartRequest(url, body) {
     return res.json();
 }
 
+// Pesos, with centavos only when there are any: ₱55, ₱57.50, ₱1,400.
 function peso(amount) {
-    return '₱' + Number(amount || 0).toLocaleString('en-PH');
+    const value = Math.round(Number(amount || 0) * 100) / 100;
+    const decimals = Number.isInteger(value) ? 0 : 2;
+
+    return '₱' + value.toLocaleString('en-PH', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
 }
 
-function wholeQty(value) {
-    return Math.max(0, Math.floor(Number(value) || 0));
+// Round a typed amount for its size: per-kilo sizes (min 0.5) to 0.1 kg, bags (min 1) to whole numbers.
+// At least the minimum, at most 999; 0 stays 0.
+function snapQty(value, min = 1) {
+    const qty = Number(value) || 0;
+
+    if (qty <= 0) return 0;
+
+    const rounded = min < 1 ? Math.round(qty * 10) / 10 : Math.round(qty);
+
+    return Math.min(Math.max(rounded, min), 999);
 }
+
+// Phones: some keyboards show a "Next" key that jumps straight into the next Qty box.
+// On touch screens a Qty box may only be focused by tapping it; a jump without a tap just closes the keyboard.
+let lastTouchAt = 0;
+
+document.addEventListener('touchstart', () => (lastTouchAt = Date.now()), { capture: true, passive: true });
+
+document.addEventListener('focusin', (event) => {
+    const isQtyBox = event.target.classList?.contains('qty-box');
+    const onTouchScreen = window.matchMedia('(pointer: coarse)').matches;
+
+    if (isQtyBox && onTouchScreen && Date.now() - lastTouchAt > 800) {
+        event.target.blur();
+    }
+}, true);
 
 document.addEventListener('alpine:init', () => {
     const initial = window.__CART__ || {};
@@ -47,8 +74,9 @@ document.addEventListener('alpine:init', () => {
         },
 
         get countLabel() {
-            const qty = this.summary.total_qty;
-            return qty === 1 ? '1 item' : `${qty} items`;
+            // Counts different items (not kilos): "2 items" for 1.5 kg carrots + 1 bag of onions.
+            const count = this.summary.item_count;
+            return count === 1 ? '1 item' : `${count} items`;
         },
 
         show() {
@@ -65,20 +93,32 @@ document.addEventListener('alpine:init', () => {
             this.toastTimer = setTimeout(() => (this.toast = null), 4000);
         },
 
-        async send(url, body) {
+        // Cart requests run one at a time: the cart lives in the session, and overlapping requests can overwrite each other.
+        queue: Promise.resolve(),
+        pending: 0,
+
+        send(url, body) {
+            this.pending++;
             this.busy = true;
 
-            try {
-                const data = await cartRequest(url, body);
-                this.lines = data.lines;
-                this.summary = data.summary;
-                return true;
-            } catch (e) {
-                this.notify("We couldn't update your cart. Please try again.", { tone: 'error' });
-                return false;
-            } finally {
-                this.busy = false;
-            }
+            const run = async () => {
+                try {
+                    const data = await cartRequest(url, body);
+                    this.lines = data.lines;
+                    this.summary = data.summary;
+                    return true;
+                } catch (e) {
+                    this.notify("We couldn't update your cart. Please try again.", { tone: 'error' });
+                    return false;
+                } finally {
+                    this.busy = --this.pending > 0;
+                }
+            };
+
+            const result = this.queue.then(run);
+            this.queue = result;
+
+            return result;
         },
 
         async add(productId, items) {
@@ -95,7 +135,7 @@ document.addEventListener('alpine:init', () => {
             return this.send(this.urls.update, {
                 product_id: line.product_id,
                 variant_index: line.variant_index,
-                qty: wholeQty(qty),
+                qty: snapQty(qty, line.min || 1),
             });
         },
 
@@ -107,33 +147,30 @@ document.addEventListener('alpine:init', () => {
         },
     });
 
-    Alpine.data('productCard', (productId, prices) => ({
-        qtys: prices.map(() => 0),
+    // Shop card: type amounts in the Qty boxes, then "Add to cart" adds them all at once.
+    // mins[i] is 0.5 for per-kilo sizes (ordered to 0.1 kg) and 1 for bags (whole only).
+    Alpine.data('productCard', (productId, prices, mins) => ({
+        qtys: prices.map(() => ''),
         loading: false,
 
+        qtyAt(i) {
+            return snapQty(this.qtys[i], mins[i]);
+        },
+
         get hasQty() {
-            return this.qtys.some((qty) => wholeQty(qty) > 0);
+            return this.qtys.some((qty, i) => this.qtyAt(i) > 0);
         },
 
         get selectedTotal() {
-            return this.qtys.reduce((sum, qty, i) => sum + wholeQty(qty) * prices[i], 0);
+            return this.qtys.reduce((sum, qty, i) => sum + this.qtyAt(i) * prices[i], 0);
         },
 
         get buttonLabel() {
-            if (this.loading) return 'Adding…';
-            return this.hasQty ? `Add to cart · ${peso(this.selectedTotal)}` : 'Add to cart';
-        },
-
-        inc(i) {
-            this.qtys[i] = wholeQty(this.qtys[i]) + 1;
-        },
-
-        dec(i) {
-            this.qtys[i] = Math.max(0, wholeQty(this.qtys[i]) - 1);
+            return this.loading ? 'Adding…' : 'Add to cart';
         },
 
         normalize(i) {
-            this.qtys[i] = wholeQty(this.qtys[i]);
+            this.qtys[i] = this.qtyAt(i) || '';
         },
 
         async addToCart() {
@@ -142,11 +179,11 @@ document.addEventListener('alpine:init', () => {
             this.loading = true;
 
             const items = this.qtys
-                .map((qty, variant_index) => ({ variant_index, qty: wholeQty(qty) }))
+                .map((qty, variant_index) => ({ variant_index, qty: this.qtyAt(variant_index) }))
                 .filter((item) => item.qty > 0);
 
             if (await Alpine.store('cart').add(productId, items)) {
-                this.qtys = this.qtys.map(() => 0);
+                this.qtys = this.qtys.map(() => '');
             }
 
             this.loading = false;
@@ -183,20 +220,11 @@ document.addEventListener('alpine:init', () => {
 
         openReview() {
             const data = new FormData(this.$refs.form);
-            const date = data.get('preferred_date');
-            const time = data.get('preferred_time');
 
             this.details = {
                 full_name: data.get('full_name'),
                 contact_number: data.get('contact_number'),
                 delivery_address: data.get('delivery_address'),
-                order_notes: (data.get('order_notes') || '').trim(),
-                date: date
-                    ? new Date(date + 'T00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-                    : '',
-                time: time
-                    ? new Date('1970-01-01T' + time).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })
-                    : '',
             };
             this.reviewing = true;
         },

@@ -2,19 +2,19 @@
 <header class="site-header">
     <div class="container header-inner">
         <a href="{{ route('products.index') }}" class="brand">
-            <span class="brand-mark"><x-icon name="sprout" size="20" /></span>
-            <span class="brand-word">Bagsakan<span>Veggies</span></span>
+            <span class="brand-mark"><img src="{{ asset('images/logo-mark.png') }}" alt="" width="256" height="256"></span>
+            <span class="brand-word">Bagsakan <span>Veggies</span> Phils</span>
         </a>
 
         @if ($minimal ?? false)
             <a href="{{ route('products.index') }}" class="btn btn-ghost header-back">
                 <x-icon name="arrow-left" size="18" />
-                Back to shop
+                <span class="header-back-long">Back to shop</span>
+                <span class="header-back-short">Shop</span>
             </a>
         @else
             <nav class="primary-nav" aria-label="Main">
                 <a href="#products">Vegetables</a>
-                <a href="#how-it-works">How to order</a>
                 @if ($messengerPageUrl)
                     <a href="{{ $messengerPageUrl }}" target="_blank" rel="noopener">Message us</a>
                 @endif
@@ -32,8 +32,8 @@
                 <span class="cart-button-label">Cart</span>
                 <span
                     class="cart-count"
-                    :class="{ 'is-empty': !$store.cart.summary.total_qty }"
-                    x-text="$store.cart.summary.total_qty"
+                    :class="{ 'is-empty': !$store.cart.summary.item_count }"
+                    x-text="$store.cart.summary.item_count"
                 >{{ $cartCount ?? 0 }}</span>
                 <span class="sr-only">items</span>
             </button>

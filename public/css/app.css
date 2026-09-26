@@ -72,7 +72,7 @@ body {
   font-size: 16px;
   line-height: 1.5;
   color: var(--ink);
-  background: var(--paper);
+  background: var(--surface);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
@@ -247,15 +247,16 @@ button:disabled { cursor: not-allowed; }
   letter-spacing: -0.02em;
 }
 
+/* The shop's logo emblem (public/images/logo-mark.png, transparent background) */
 .brand-mark {
   display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: var(--green-700);
-  color: #fff;
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
 }
+
+.brand-mark img { display: block; width: 100%; height: 100%; object-fit: contain; }
 
 .brand-word span { color: var(--green-700); }
 
@@ -308,6 +309,7 @@ button:disabled { cursor: not-allowed; }
 .cart-count.is-empty { background: var(--paper-2); color: var(--ink-3); }
 
 .header-back { margin-left: auto; }
+.header-back-short { display: none; }
 
 /* Notices
    ========================================================================== */
@@ -511,11 +513,7 @@ button:disabled { cursor: not-allowed; }
   border-top: 1px solid var(--line);
 }
 
-#products {
-  background: var(--surface);
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
-}
+#products { background: var(--surface); }
 
 .section-head {
   display: flex;
@@ -535,57 +533,47 @@ button:disabled { cursor: not-allowed; }
 
 .product-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 32px 24px;
 }
 
+/* No frames, plain white: the only color on the page comes from the vegetable photos (client request). */
 .product-card {
   display: flex;
   flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius-lg);
   background: var(--surface);
-  transition: border-color 0.2s, box-shadow 0.2s;
 }
 
-.product-card:hover {
-  border-color: var(--line-strong);
-  box-shadow: var(--shadow-2);
+.product-media { background: var(--surface); }
+
+.product-photo-empty {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 3;
+  background: var(--surface);
+  color: var(--line);
 }
 
-.product-head {
+.product-body {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 92px;
-  padding: 20px;
-  background: color-mix(in srgb, var(--swatch) 15%, var(--surface));
+  flex: 1;
+  flex-direction: column;
+  padding: 8px 0 0;
 }
 
-.product-name { font-size: 1.3125rem; }
+.product-name { font-size: 1rem; line-height: 1.2; }
 
 .product-note {
-  margin-top: 4px;
-  font-size: 0.8125rem;
-  font-weight: 500;
+  margin-top: 1px;
+  font-size: 0.75rem;
   color: var(--ink-2);
 }
 
-.product-swatch {
-  width: 18px;
-  height: 18px;
-  margin-top: 4px;
-  border-radius: 50%;
-  background: var(--swatch);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--swatch) 22%, transparent);
-  flex-shrink: 0;
-}
-
 .variant-list {
-  margin: 0;
-  padding: 4px 20px;
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 0;
+  padding: 0;
   list-style: none;
 }
 
@@ -593,57 +581,118 @@ button:disabled { cursor: not-allowed; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  padding: 14px 0;
-  border-bottom: 1px dashed var(--line);
+  gap: 6px;
 }
-
-.variant:last-child { border-bottom: 0; }
 
 .variant-info {
   display: flex;
-  flex: 1;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0 8px;
+  gap: 0 4px;
   min-width: 0;
-}
-
-.variant-label {
-  flex-basis: 100%;
   font-size: 0.8125rem;
+  line-height: 1.25;
   color: var(--ink-2);
+  cursor: pointer;
 }
 
 .variant-price {
-  font-size: 1.125rem;
   font-weight: 700;
+  color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
 
-.variant-unit {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--green-700);
-  font-variant-numeric: tabular-nums;
-}
-
-.product-foot {
-  margin-top: auto;
-  padding: 4px 20px 20px;
-}
-
-.btn-add {
-  background: var(--paper-2);
+.variant-hint {
+  flex-basis: 100%;
+  font-size: 0.6875rem;
   color: var(--ink-3);
 }
 
-.btn-add.is-ready {
-  background: var(--green-700);
-  color: #fff;
+.qty-field {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
-.btn-add.is-ready:hover:not(:disabled) { background: var(--green-800); }
+.qty-caption { font-size: 0.6875rem; color: var(--ink-3); }
+
+.qty-box {
+  width: 44px;
+  height: 30px;
+  padding: 0 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.qty-box::-webkit-outer-spin-button,
+.qty-box::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+
+.qty-box::placeholder { color: var(--line-strong); }
+
+.qty-box:focus { outline: 2px solid var(--green-700); outline-offset: 0; border-color: var(--green-700); }
+
+.btn-add {
+  margin-top: auto;
+  min-height: 38px;
+  padding: 6px 10px;
+  border-color: var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 0.875rem;
+}
+
+.variant-list { margin-bottom: 12px; }
+
+.btn-add:hover:not(:disabled) { border-color: var(--ink-3); }
+
+.btn-add-label { display: inline-flex; align-items: center; gap: inherit; }
+.btn-add-total { font-weight: 700; font-variant-numeric: tabular-nums; }
+.btn-add-total::before { content: "·"; margin-right: 8px; font-weight: 400; color: var(--ink-3); }
+.btn-add:disabled { color: var(--ink-3); opacity: 1; }
+
+/* End-of-list cart total + ORDER */
+
+.order-summary {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  max-width: 420px;
+  margin: 56px auto 0;
+  padding-top: 32px;
+  border-top: 1px solid var(--line);
+  text-align: center;
+}
+
+.order-summary-total { display: grid; gap: 2px; }
+.order-summary-label { font-size: 0.9375rem; color: var(--ink-2); }
+
+.order-summary-amount {
+  font-family: var(--font-display);
+  font-size: 2.25rem;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.order-summary-count { font-size: 0.875rem; color: var(--ink-3); }
+
+.order-summary-btn {
+  width: 100%;
+  min-height: 56px;
+  font-size: 1.125rem;
+  letter-spacing: 0.06em;
+}
+
+.order-summary-btn.is-disabled { opacity: 0.45; cursor: not-allowed; }
+.order-summary-hint { margin: 0; font-size: 0.875rem; color: var(--ink-3); }
 
 /* Stepper */
 
@@ -671,27 +720,12 @@ button:disabled { cursor: not-allowed; }
 .stepper-btn:hover:not(:disabled) { background: var(--green-50); color: var(--green-700); }
 .stepper-btn:disabled { color: var(--line-strong); }
 
-.qty-input,
 .qty-value {
   width: 40px;
   text-align: center;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
-
-.qty-input {
-  height: 40px;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-.qty-input::-webkit-outer-spin-button,
-.qty-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
-
-.qty-input:focus-visible { outline-offset: -2px; border-radius: 4px; }
 
 .stepper-sm .stepper-btn { width: 36px; height: 36px; }
 .stepper-sm .qty-value { width: 32px; }
@@ -1168,6 +1202,22 @@ button:disabled { cursor: not-allowed; }
 .payment-note svg { margin-top: 1px; }
 .payment-note strong { font-weight: 600; }
 
+.dispatch-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--warn-line);
+  border-radius: var(--radius);
+  background: var(--warn-50);
+  color: var(--warn-ink);
+  font-size: 0.9375rem;
+}
+
+.dispatch-note svg { flex-shrink: 0; margin-top: 2px; }
+.dispatch-note p { margin: 0; }
+.dispatch-note strong { font-weight: 700; }
+
 .form-section {
   min-width: 0;
   margin: 0 0 16px;
@@ -1252,7 +1302,8 @@ textarea.input { resize: vertical; }
   gap: 14px;
   padding: 24px;
   border-radius: var(--radius-lg);
-  background: var(--paper-2);
+  border: 1px solid var(--line);
+  background: var(--surface);
 }
 
 .place-order-total {
@@ -1399,7 +1450,7 @@ textarea.input { resize: vertical; }
 .footer-brand p { margin-top: 14px; }
 
 .brand-inverse { color: #fff; }
-.brand-inverse .brand-mark { background: var(--cream); color: var(--green-900); }
+.brand-inverse .brand-mark { padding: 4px; border-radius: 50%; background: #fff; }
 .brand-inverse .brand-word span { color: #a9d19a; }
 
 .footer-facts {
@@ -1455,9 +1506,16 @@ textarea.input { resize: vertical; }
 }
 
 @media (max-width: 767px) {
-  .primary-nav { display: none; }
+  /* Phones: logo + cart on the first row, the menu links on a small second row */
+  .header-inner { flex-wrap: wrap; row-gap: 2px; min-height: 0; padding-block: 10px 4px; }
+  .primary-nav { order: 3; width: 100%; margin: 0 0 0 -10px; gap: 2px; }
+  main [id] { scroll-margin-top: 116px; }
+  .primary-nav a { padding: 6px 10px; font-size: 0.875rem; }
   .cart-button { margin-left: auto; }
-  .has-cart-bar { padding-bottom: 88px; }
+
+  /* Room for the floating "View cart" bar goes inside the footer, so the dark footer reaches the bottom
+     of the screen (a gap on <body> showed as a white strip whenever the bar was hidden). */
+  .has-cart-bar .footer-base { padding-bottom: calc(28px + 88px + env(safe-area-inset-bottom)); }
   .has-cart-bar .toast-region { bottom: calc(88px + env(safe-area-inset-bottom)); }
   .steps { grid-template-columns: 1fr; }
   .confirm-grid { grid-template-columns: 1fr; }
@@ -1468,8 +1526,12 @@ textarea.input { resize: vertical; }
 
   .container { padding-inline: 16px; }
   .announcement { font-size: 0.8125rem; }
-  .brand { font-size: 1.125rem; }
-  .brand-mark { width: 32px; height: 32px; }
+  .brand { font-size: 1rem; white-space: nowrap; }
+  /* Shorter back link so the longer shop name and the link fit one phone-wide row */
+  .header-back { flex-shrink: 0; padding-inline: 8px; }
+  .header-back-long { display: none; }
+  .header-back-short { display: inline; }
+  .brand-mark { width: 40px; height: 40px; }
   .cart-button-label { display: none; }
 
   .hero { padding: 40px 0 48px; }
@@ -1487,30 +1549,34 @@ textarea.input { resize: vertical; }
   .drawer-foot { padding-inline: 20px; }
   .drawer-head { padding-left: 20px; }
 
-  /* Product grid: 2 columns, compact enough for ~3 rows per screen */
+  /* Product grid: 3 small cards per row, like the client's printed price sheet */
+  #products .container { padding-inline: 12px; }
+
   .product-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 20px 6px;
   }
 
-  .product-card .product-photo { aspect-ratio: auto; height: 85px; }
+  .product-body { padding: 4px 0 0; }
+  .product-name { font-size: 0.6875rem; }   /* 11px, matching the client's price sheet */
+  .product-note { font-size: 0.5625rem; }
 
-  .product-head { min-height: 0; padding: 5px 6px; gap: 4px; }
-  .product-name { font-size: 0.8125rem; line-height: 1.15; }
-  .product-note { font-size: 0.625rem; margin-top: 1px; }
-  .product-swatch { width: 9px; height: 9px; margin-top: 1px; box-shadow: 0 0 0 2px color-mix(in srgb, var(--swatch) 22%, transparent); }
+  .variant-list { gap: 5px; margin-top: 6px; }
+  .variant { gap: 3px; }
+  /* "10 kg bag - ₱700" on one line (wraps only when a long price can't fit) */
+  .variant-info { gap: 0 2px; font-size: 0.5625rem; line-height: 1.25; letter-spacing: -0.01em; }
+  .variant-price { font-size: 0.5625rem; }
+  .variant-hint { font-size: 0.5rem; }
 
-  .variant-list { padding: 2px 8px; }
-  .variant { padding: 3px 0; gap: 6px; }
-  .variant-label { flex-basis: auto; font-size: 0.625rem; }
-  .variant-price { font-size: 0.75rem; }
-  .variant-unit { font-size: 0.625rem; }
-
-  .stepper-btn { width: 20px; height: 20px; }
-  .qty-input, .qty-value { width: 18px; }
-
-  .product-foot { padding: 2px 8px 6px; }
-  .product-foot .btn { min-height: 25px; padding: 3px 6px; font-size: 0.6875rem; gap: 3px; }
+  .qty-field { gap: 1px; }
+  .qty-caption { font-size: 0.5rem; }
+  .qty-box { width: 26px; height: 22px; padding: 0 1px; border-radius: 4px; font-size: 16px; }
+  .variant-list { margin-bottom: 8px; }
+  .btn-add { min-height: 28px; padding: 3px 4px; gap: 3px; font-size: 0.625rem; border-radius: 6px; }
+  .btn-add svg { width: 12px; height: 12px; }
+  .btn-add { flex-direction: column; gap: 0; line-height: 1.25; }
+  .btn-add-label { gap: 3px; }
+  .btn-add-total::before { content: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1528,6 +1594,14 @@ textarea.input { resize: vertical; }
   width: 100%;
   height: auto;
   aspect-ratio: 4 / 3;
-  object-fit: cover;
-  background: color-mix(in srgb, var(--swatch) 15%, var(--surface));
+  object-fit: contain;
+  background: var(--surface);
+}
+
+/* Very small phones (≤360px): let the longer shop name wrap so the cart button stays on screen */
+@media (max-width: 360px) {
+  .brand { white-space: normal; line-height: 1.15; }
+
+  /* Long names ("Fresh Sili Pansigang") wrap here; give every name two lines so the sizes still line up */
+  .product-name { min-height: 2.4em; }
 }

@@ -53,6 +53,6 @@
             Checkout
             <x-icon name="arrow-right" size="18" />
         </a>
-        <p class="fine-print">Cash on delivery. Same-day delivery for orders placed before 12:00 NN.</p>
+        <p class="fine-print">Cash on delivery. Orders before 10&nbsp;AM are dispatched by 12&nbsp;NN; after 10&nbsp;AM, by 3&nbsp;PM.</p>
     </div>
 </aside>

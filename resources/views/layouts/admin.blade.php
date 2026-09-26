@@ -5,7 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <meta name="robots" content="noindex, nofollow">
-    <title>@yield('title', 'Admin') · BagsakanVeggies</title>
+    <title>@yield('title', 'Admin') · Bagsakan Veggies Phils</title>
+    <link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@500;600&family=Fira+Sans:wght@400;500;600;700&display=swap">
@@ -20,9 +21,9 @@
         <header class="a-topbar">
             <div class="a-topbar-inner">
                 <a href="{{ route('admin.products.index') }}" class="a-brand">
-                    <span class="a-brand-mark"><x-admin.icon name="sprout" :size="20" /></span>
+                    <span class="a-brand-mark"><img src="{{ asset('images/logo-mark.png') }}" alt="" width="256" height="256"></span>
                     <span class="a-brand-text">
-                        <span class="a-brand-name">BagsakanVeggies</span>
+                        <span class="a-brand-name">Bagsakan Veggies Phils</span>
                         <span class="a-brand-chip">Admin</span>
                     </span>
                 </a>

@@ -12,7 +12,7 @@
                     <button
                         type="button"
                         class="stepper-btn"
-                        @click="$store.cart.setQty(line, line.qty - 1)"
+                        @click="$store.cart.setQty(line, line.qty - line.min)"
                         :disabled="$store.cart.busy"
                         aria-label="Decrease quantity"
                     ><x-icon name="minus" size="16" /></button>
@@ -20,7 +20,7 @@
                     <button
                         type="button"
                         class="stepper-btn"
-                        @click="$store.cart.setQty(line, line.qty + 1)"
+                        @click="$store.cart.setQty(line, line.qty + line.min)"
                         :disabled="$store.cart.busy"
                         aria-label="Increase quantity"
                     ><x-icon name="plus" size="16" /></button>

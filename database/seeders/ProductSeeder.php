@@ -42,7 +42,7 @@ class ProductSeeder extends Seeder
                     'note' => $product['note'],
                     'variants' => [
                         ['label' => '10 kg bag', 'price' => $product['bag']],
-                        ['label' => 'per kg', 'price' => $product['kg']],
+                        ['label' => '1 kg', 'price' => $product['kg']],
                     ],
                     'sort_order' => $index,
                 ]

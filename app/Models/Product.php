@@ -62,8 +62,66 @@ class Product extends Model
     public function pricePerKilo(int $index): ?float
     {
         $variant = $this->variant($index);
+        $kilos = $variant ? self::kilosIn($variant['label']) : null;
 
-        if (! $variant || ! preg_match('/(?:(\d+)\s*\/\s*(\d+)|(\d*\.?\d+))\s*(kg|kilos?|g|grams?)\b/i', $variant['label'], $matches)) {
+        return $kilos && $kilos != 1 ? $variant['price'] / $kilos : null;
+    }
+
+    /**
+     * Per-kilo sizes ("per kg", "1 kg", "kilo") can be ordered in half kilos; bags only whole.
+     */
+    public function allowsHalf(int $index): bool
+    {
+        $variant = $this->variant($index);
+
+        if (! $variant) {
+            return false;
+        }
+
+        $kilos = self::kilosIn($variant['label']);
+
+        return $kilos === null
+            ? (bool) preg_match('/\b(kg|kilos?)\b/i', $variant['label'])
+            : $kilos == 1;
+    }
+
+    /**
+     * Smallest amount a size can be ordered in: 0.5 kg for per-kilo sizes, otherwise 1.
+     */
+    public function minQty(int $index): float
+    {
+        return $this->allowsHalf($index) ? 0.5 : 1.0;
+    }
+
+    /**
+     * How finely a size can be ordered: per-kilo sizes to 0.1 kg (0.5, 0.6, 0.7…), bags whole only.
+     */
+    public function qtyPrecision(int $index): int
+    {
+        return $this->allowsHalf($index) ? 1 : 0;
+    }
+
+    /**
+     * Round a typed amount for this size (0.1 kg or whole), at least the minimum, at most 999. 0 stays 0.
+     */
+    public function normalizeQty(int $index, float $qty): float
+    {
+        if ($qty <= 0) {
+            return 0.0;
+        }
+
+        $qty = round($qty, $this->qtyPrecision($index));
+
+        return min(max($qty, $this->minQty($index)), 999.0);
+    }
+
+    /**
+     * Kilos in a size label ("10 kg bag" → 10, "per .5kg" → 0.5, "1/2 kg" → 0.5, "500g" → 0.5),
+     * or null when the label has no amount (e.g. "per kg").
+     */
+    protected static function kilosIn(string $label): ?float
+    {
+        if (! preg_match('/(?:(\d+)\s*\/\s*(\d+)|(\d*\.?\d+))\s*(kg|kilos?|g|grams?)\b/i', $label, $matches)) {
             return null;
         }
 
@@ -75,7 +133,7 @@ class Product extends Model
             $kilos /= 1000;
         }
 
-        return $kilos > 0 && $kilos != 1 ? $variant['price'] / $kilos : null;
+        return $kilos > 0 ? $kilos : null;
     }
 
     /**

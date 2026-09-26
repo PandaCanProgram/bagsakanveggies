@@ -34,7 +34,7 @@ class ProductController extends Controller
             'product' => new Product([
                 'variants' => [
                     ['label' => '10 kg bag', 'price' => null],
-                    ['label' => 'per kg', 'price' => null],
+                    ['label' => '1 kg', 'price' => null],
                 ],
             ]),
         ]);

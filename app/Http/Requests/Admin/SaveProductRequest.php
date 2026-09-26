@@ -48,7 +48,7 @@ class SaveProductRequest extends FormRequest
             'name.unique' => 'A veggie with this name already exists.',
             'variants.required' => 'Add at least one size and price.',
             'variants.max' => 'A veggie can have up to '.self::MAX_VARIANTS.' sizes.',
-            'variants.*.label.required' => 'Enter a size, e.g. “per kg”.',
+            'variants.*.label.required' => 'Enter a size, e.g. “1 kg”.',
             'variants.*.label.distinct' => 'Each size needs a different name.',
             'variants.*.price.required' => 'Enter a price.',
             'variants.*.price.integer' => 'Use whole pesos only.',

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Support\Format;
 use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
@@ -22,6 +23,9 @@ class Order extends Model
 
     protected $casts = [
         'preferred_date' => 'date',
+        'subtotal' => 'float',
+        'delivery_fee' => 'float',
+        'total' => 'float',
     ];
 
     public function items()
@@ -32,17 +36,19 @@ class Order extends Model
     public function messengerText(): string
     {
         $itemLines = $this->items->map(function (OrderItem $item) {
-            return "- {$item->product_name} ({$item->variant_label}) x{$item->qty} = ₱".number_format($item->line_total);
+            return "- {$item->product_name} ({$item->variant_label}) x".Format::qty($item->qty).' = '.Format::peso($item->line_total);
         })->implode("\n");
 
-        $when = $this->preferred_date->format('M j, Y').' '.\Carbon\Carbon::parse($this->preferred_time)->format('g:i A');
-
         $text = "Hi! Confirming Order #{$this->id}:\n{$itemLines}\n\n"
-            ."Total: ₱".number_format($this->total)."\n"
+            .'Total: '.Format::peso($this->total)."\n"
             ."Name: {$this->full_name}\n"
-            ."Contact #: {$this->contact_number}\n"
-            ."Delivery: {$this->delivery_address}\n"
-            ."Preferred: {$when}";
+            ."CP or Viber: {$this->contact_number}\n"
+            ."Delivery Address: {$this->delivery_address}";
+
+        // Orders placed before checkout stopped asking for a date/time (and notes) still show theirs.
+        if ($this->preferred_date && $this->preferred_time) {
+            $text .= "\nPreferred: ".$this->preferred_date->format('M j, Y').' '.\Carbon\Carbon::parse($this->preferred_time)->format('g:i A');
+        }
 
         if ($this->order_notes) {
             $text .= "\nNotes: {$this->order_notes}";

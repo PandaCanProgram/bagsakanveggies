@@ -51,31 +51,19 @@
         </section>
 
         <section aria-labelledby="review-contact-title">
-            <h3 id="review-contact-title" class="review-heading">Contact &amp; delivery</h3>
+            <h3 id="review-contact-title" class="review-heading">Details</h3>
             <dl class="detail-list review-details">
                 <div>
                     <dt>Name</dt>
                     <dd x-text="details.full_name"></dd>
                 </div>
                 <div>
-                    <dt>Mobile number</dt>
+                    <dt>CP or Viber</dt>
                     <dd x-text="details.contact_number"></dd>
                 </div>
                 <div class="review-span">
-                    <dt>Address</dt>
+                    <dt>Delivery address</dt>
                     <dd x-text="details.delivery_address"></dd>
-                </div>
-                <div>
-                    <dt>Preferred date</dt>
-                    <dd x-text="details.date"></dd>
-                </div>
-                <div>
-                    <dt>Preferred time</dt>
-                    <dd x-text="details.time"></dd>
-                </div>
-                <div class="review-span" x-show="details.order_notes">
-                    <dt>Notes</dt>
-                    <dd x-text="details.order_notes"></dd>
                 </div>
                 <div class="review-span">
                     <dt>Payment</dt>

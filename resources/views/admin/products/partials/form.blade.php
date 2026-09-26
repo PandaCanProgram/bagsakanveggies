@@ -124,7 +124,7 @@
                         <div class="a-field">
                             <label :for="`variants-${index}-label`" class="a-label a-label-sm a-variant-label">Size <span class="sr-only" x-text="index + 1"></span></label>
                             <input :id="`variants-${index}-label`" :name="`variants[${index}][label]`" type="text" class="a-input"
-                                   x-model="variant.label" maxlength="40" required placeholder="e.g. per kg"
+                                   x-model="variant.label" maxlength="40" required placeholder="e.g. 1 kg"
                                    :class="{ 'is-invalid': error(index, 'label') }"
                                    :aria-invalid="error(index, 'label') ? 'true' : null"
                                    :aria-describedby="error(index, 'label') ? `variants-${index}-label-error` : null">

@@ -21,11 +21,8 @@ class OrderController extends Controller
             'full_name' => ['required', 'string', 'max:255'],
             'contact_number' => ['required', 'regex:/^09\d{9}$/'],
             'delivery_address' => ['required', 'string', 'max:1000'],
-            'preferred_date' => ['required', 'date', 'after_or_equal:today'],
-            'preferred_time' => ['required', 'date_format:H:i'],
-            'order_notes' => ['nullable', 'string', 'max:1000'],
         ], [
-            'contact_number.regex' => 'Enter a valid PH mobile number, e.g. 09171234567.',
+            'contact_number.regex' => 'Enter a valid CP or Viber number, e.g. 09171234567.',
         ]);
 
         $lines = $cart->lines();
@@ -36,9 +33,6 @@ class OrderController extends Controller
                 'full_name' => $data['full_name'],
                 'contact_number' => $data['contact_number'],
                 'delivery_address' => $data['delivery_address'],
-                'preferred_date' => $data['preferred_date'],
-                'preferred_time' => $data['preferred_time'],
-                'order_notes' => $data['order_notes'] ?? null,
                 'payment_method' => 'Cash on Delivery',
                 'subtotal' => $summary['subtotal'],
                 'delivery_fee' => $summary['delivery_fee'],
