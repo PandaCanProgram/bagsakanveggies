@@ -9,8 +9,8 @@
         </div>
 
         <ul class="footer-facts">
-            <li><x-icon name="clock" size="18" /> Orders before 10&nbsp;AM dispatched by 12&nbsp;NN; after 10&nbsp;AM, by 3&nbsp;PM</li>
-            <li><x-icon name="banknote" size="18" /> Cash on delivery</li>
+            <li><x-icon name="clock" size="18" /> Orders before 10&nbsp;AM dispatched by 12&nbsp;NN; 10&nbsp;AM to 3&nbsp;PM, by 5&nbsp;PM</li>
+            <li><x-icon name="banknote" size="18" /> Payment via GCash through Messenger</li>
             @if ($messengerPageUrl)
                 <li>
                     <x-icon name="message" size="18" />

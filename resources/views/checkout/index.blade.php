@@ -33,7 +33,7 @@
 
                 <div class="payment-note">
                     <x-icon name="banknote" />
-                    <p><strong>Cash on delivery.</strong> Pay the rider when your order arrives.</p>
+                    <p><strong>Payment via GCash.</strong> We'll send the GCash details on Messenger when we confirm your order.</p>
                 </div>
             </aside>
 
@@ -110,8 +110,8 @@
                     <div class="dispatch-note">
                         <x-icon name="clock" />
                         <p>
-                            <strong>Note:</strong> Orders received before <strong>10&nbsp;AM</strong> will be dispatched by <strong>12&nbsp;NN</strong>.
-                            After 10&nbsp;AM, orders will be dispatched by <strong>3&nbsp;PM</strong>.
+                            <strong>Note:</strong> Orders placed before <strong>10&nbsp;AM</strong> will be dispatched by <strong>12&nbsp;NN</strong>.
+                            Orders after 10&nbsp;AM to 3&nbsp;PM will be dispatched by <strong>5&nbsp;PM</strong>.
                         </p>
                     </div>
                 </fieldset>

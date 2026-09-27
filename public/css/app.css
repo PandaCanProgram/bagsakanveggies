@@ -1032,6 +1032,9 @@ button:disabled { cursor: not-allowed; }
   font-size: 1.0625rem;
 }
 
+/* Total is now the only line: one separator above it, not two */
+.totals-grand:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+
 .fine-print {
   font-size: 0.8125rem;
   color: var(--ink-3);

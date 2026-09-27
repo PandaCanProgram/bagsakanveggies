@@ -67,7 +67,7 @@
                 </div>
                 <div class="review-span">
                     <dt>Payment</dt>
-                    <dd>Cash on Delivery</dd>
+                    <dd>GCash (via Messenger)</dd>
                 </div>
             </dl>
         </section>

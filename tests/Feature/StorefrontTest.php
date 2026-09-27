@@ -90,7 +90,7 @@ class StorefrontTest extends TestCase
             ->assertSee('Details')
             ->assertSee('name="contact_number"', false)
             ->assertSee('CP or Viber number')
-            ->assertSee('Orders received before')
+            ->assertSee('Orders placed before')
             ->assertDontSee('name="preferred_date"', false)
             ->assertDontSee('name="order_notes"', false)
             ->assertSee('Place order');

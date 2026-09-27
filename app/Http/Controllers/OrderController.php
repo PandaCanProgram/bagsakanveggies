@@ -33,7 +33,7 @@ class OrderController extends Controller
                 'full_name' => $data['full_name'],
                 'contact_number' => $data['contact_number'],
                 'delivery_address' => $data['delivery_address'],
-                'payment_method' => 'Cash on Delivery',
+                'payment_method' => 'GCash (via Messenger)',
                 'subtotal' => $summary['subtotal'],
                 'delivery_fee' => $summary['delivery_fee'],
                 'total' => $summary['total'],

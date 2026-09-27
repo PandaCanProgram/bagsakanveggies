@@ -41,6 +41,7 @@ class Order extends Model
 
         $text = "Hi! Confirming Order #{$this->id}:\n{$itemLines}\n\n"
             .'Total: '.Format::peso($this->total)."\n"
+            ."Payment: GCash\n"
             ."Name: {$this->full_name}\n"
             ."CP or Viber: {$this->contact_number}\n"
             ."Delivery Address: {$this->delivery_address}";

@@ -111,14 +111,6 @@
                     @endforeach
                 </ul>
                 <dl class="totals">
-                    <div class="totals-row">
-                        <dt>Subtotal</dt>
-                        <dd>{{ \App\Support\Format::peso($order->subtotal) }}</dd>
-                    </div>
-                    <div class="totals-row">
-                        <dt>Delivery</dt>
-                        <dd>{{ $order->delivery_fee ? \App\Support\Format::peso($order->delivery_fee) : 'Free' }}</dd>
-                    </div>
                     <div class="totals-row totals-grand">
                         <dt>Total</dt>
                         <dd>{{ \App\Support\Format::peso($order->total) }}</dd>
