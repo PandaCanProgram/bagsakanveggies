@@ -22,6 +22,6 @@
 
     <div class="container footer-base">
         <p>&copy; {{ date('Y') }} Bagsakan Veggies Phils</p>
-        <p>Powered by AVX</p>
+        <p><a href="https://www.facebook.com/avxengineeringsolutions" class="footer-credit" target="_blank" rel="noopener">Powered by AVX</a></p>
     </div>
 </footer>

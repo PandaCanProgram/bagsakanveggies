@@ -1605,3 +1605,8 @@ textarea.input { resize: vertical; }
   /* Long names ("Fresh Sili Pansigang") wrap here; give every name two lines so the sizes still line up */
   .product-name { min-height: 2.4em; }
 }
+
+/* "Powered by AVX" credit link: same muted colour as the text around it, underlined on hover */
+.footer-credit { color: inherit; text-decoration: none; }
+.footer-credit:hover,
+.footer-credit:focus-visible { color: #fff; text-decoration: underline; text-underline-offset: 3px; }
