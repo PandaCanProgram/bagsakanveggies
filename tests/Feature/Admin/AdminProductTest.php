@@ -68,9 +68,9 @@ class AdminProductTest extends TestCase
             ->assertSee('value="2200"', false);
     }
 
-    public function test_admin_can_add_a_veggie_that_appears_last_on_the_store(): void
+    public function test_admin_can_add_a_veggie_that_appears_first_on_the_store(): void
     {
-        $this->makeProduct('Fresh Carrots');
+        $carrots = $this->makeProduct('Fresh Carrots');
 
         $this->actingAs($this->admin)
             ->post(route('admin.products.store'), [
@@ -91,9 +91,11 @@ class AdminProductTest extends TestCase
             ['label' => '5 kg bag', 'price' => 450],
             ['label' => 'per kg', 'price' => 95],
         ], $okra->variants);
-        $this->assertSame(1, $okra->sort_order);
+        $this->assertSame(0, $okra->sort_order);
+        $this->assertSame(1, $carrots->refresh()->sort_order);
 
-        $this->get(route('products.index'))->assertSeeInOrder(['Fresh Carrots', 'Fresh Okra', '₱450']);
+        $this->get(route('products.index'))->assertSeeInOrder(['Fresh Okra', '₱450', 'Fresh Carrots']);
+        $this->get(route('admin.products.index'))->assertSeeInOrder(['Fresh Okra', 'Fresh Carrots']);
     }
 
     public function test_adding_a_veggie_requires_a_unique_name_and_valid_prices(): void

@@ -42,13 +42,18 @@ class ProductController extends Controller
 
     public function store(SaveProductRequest $request): RedirectResponse
     {
+        // New veggies go first: everything else moves down one place.
         $product = new Product([
             ...$request->productAttributes(),
-            'sort_order' => (Product::max('sort_order') ?? -1) + 1,
+            'sort_order' => 0,
         ]);
 
         $this->applyImage($request, $product);
-        $product->save();
+
+        DB::transaction(function () use ($product) {
+            Product::query()->increment('sort_order');
+            $product->save();
+        });
 
         return redirect()->route('admin.products.index')
             ->with('status', "{$product->name} is now live on the store.");
