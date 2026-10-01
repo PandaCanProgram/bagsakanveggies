@@ -978,8 +978,18 @@ td.a-col-updated { padding-top: 36px !important; }
 }
 
 @media (max-width: 768px) {
-  .a-topbar-inner { padding: var(--space-2) var(--space-4); gap: var(--space-3); }
-  .a-nav { display: none; }
+  /* Brand and actions share the first row; the nav becomes a row of tabs under them */
+  .a-topbar-inner {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas: "brand actions" "nav nav";
+    padding: var(--space-2) var(--space-4) 0;
+    gap: var(--space-2) var(--space-3);
+  }
+  .a-brand { grid-area: brand; min-width: 0; }
+  .a-topbar-actions { grid-area: actions; }
+  .a-nav { grid-area: nav; margin: 0 calc(-1 * var(--space-4)); border-top: 1px solid var(--color-border); }
+  .a-nav-link { flex: 1; justify-content: center; }
   .a-topbar-actions { margin-left: auto; }
   .a-main { padding: var(--space-4) var(--space-4) 128px; }
   .a-page-title { font-size: 24px; }
@@ -1067,4 +1077,141 @@ td.a-col-updated { padding-top: 36px !important; }
 /* Line the delete card up with the form column (the preview sits beside it on wide screens) */
 @media (min-width: 961px) {
   .a-danger-zone { max-width: calc(100% - 320px - var(--space-6)); }
+}
+
+/* Dashboard: daily order summary */
+.a-day-picker { display: flex; align-items: center; gap: var(--space-2); margin: 0; }
+
+.a-day-input { width: auto; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.a-summary-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+
+.a-summary-error { flex-basis: 100%; }
+
+.a-summary-sheet { padding: var(--space-6); }
+
+.a-summary-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-muted-foreground);
+}
+
+.a-summary-date {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.a-day-tag {
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.a-summary-count { margin-top: var(--space-1); color: var(--color-muted-foreground); }
+
+.a-summary-count strong { color: var(--color-foreground); font-family: var(--font-mono); }
+
+.a-summary-table {
+  width: 100%;
+  margin-top: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-collapse: collapse;
+}
+
+.a-summary-table th,
+.a-summary-table td {
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--color-border);
+  text-align: left;
+  font-weight: 500;
+}
+
+.a-summary-table thead th {
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--color-muted-foreground);
+  background: var(--color-muted);
+}
+
+/* Quantities keep only the width they need; product names get the rest of the row */
+.a-summary-table .a-num {
+  width: 1%;
+  text-align: right;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.a-summary-table thead .a-num { font-family: var(--font-sans); }
+
+.a-emoji { font-family: 'Apple Color Emoji', 'Segoe UI Emoji', 'Noto Color Emoji', sans-serif; font-weight: 400; }
+
+.a-summary-table tfoot th,
+.a-summary-table tfoot td {
+  font-weight: 700;
+  border-top: 2px solid var(--color-foreground);
+  border-bottom: 0;
+}
+
+.a-summary-empty { padding: var(--space-8) 0 var(--space-4); }
+
+@media (max-width: 768px) {
+  .a-day-picker { flex: 1 1 100%; }
+  .a-day-input { flex: 1; min-width: 0; }
+  /* Phones pick a day from the date picker, which shows it right away */
+  .a-day-show { display: none; }
+  .a-summary-actions { flex: 1 1 100%; }
+  .a-summary-actions .a-btn { flex: 1; }
+  .a-summary-sheet { padding: var(--space-4); }
+  .a-summary-table th,
+  .a-summary-table td { padding: var(--space-3); }
+  /* Let the column title wrap so product names stay on one line */
+  .a-summary-table thead .a-num { white-space: normal; }
+}
+
+/* Printing the dashboard gives just the summary sheet, in black on white */
+@media print {
+  :root {
+    color-scheme: light;
+    --color-background: #ffffff;
+    --color-foreground: #000000;
+    --color-card: #ffffff;
+    --color-muted: #eef2ec;
+    --color-muted-foreground: #333333;
+    --color-border: #555555;
+  }
+
+  @page { margin: 12mm; }
+
+  .skip-link,
+  .a-topbar,
+  .a-flash,
+  .a-page-head,
+  .a-summary-toolbar,
+  .a-day-tag { display: none !important; }
+
+  .a-main { max-width: none; padding: 0; }
+  .a-card { border: 0; box-shadow: none; }
+  .a-summary-sheet { padding: 0; }
+  .a-summary-title { color: var(--color-foreground); font-size: 18px; }
+  .a-summary-table th,
+  .a-summary-table td { border: 1px solid var(--color-border); }
+  .a-summary-table thead th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* Show the total once at the end, not at the foot of every printed page */
+  .a-summary-table tfoot { display: table-row-group; }
+  .a-summary-table tr { break-inside: avoid; }
 }

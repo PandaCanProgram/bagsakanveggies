@@ -20,7 +20,7 @@
     @auth
         <header class="a-topbar">
             <div class="a-topbar-inner">
-                <a href="{{ route('admin.products.index') }}" class="a-brand">
+                <a href="{{ route('admin.home') }}" class="a-brand">
                     <span class="a-brand-mark"><img src="{{ asset('images/logo-mark.png') }}" alt="" width="256" height="256"></span>
                     <span class="a-brand-text">
                         <span class="a-brand-name">Bagsakan Veggies Phils</span>
@@ -29,6 +29,7 @@
                 </a>
 
                 <nav class="a-nav" aria-label="Admin">
+                    <a href="{{ route('admin.home') }}" class="a-nav-link" @if (request()->routeIs('admin.home')) aria-current="page" @endif>Dashboard</a>
                     <a href="{{ route('admin.products.index') }}" class="a-nav-link" @if (request()->routeIs('admin.products.*')) aria-current="page" @endif>Veggies &amp; prices</a>
                 </nav>
 

@@ -27,7 +27,7 @@ class AdminAuthTest extends TestCase
         $admin = User::factory()->create(['is_admin' => true]);
 
         $this->post(route('admin.login.store'), ['email' => $admin->email, 'password' => 'password'])
-            ->assertRedirect(route('admin.products.index'));
+            ->assertRedirect(route('admin.home'));
 
         $this->assertAuthenticatedAs($admin);
     }
@@ -83,7 +83,7 @@ class AdminAuthTest extends TestCase
             ->assertSuccessful();
 
         $this->post(route('admin.login.store'), ['email' => $admin->email, 'password' => 'brand-new-password'])
-            ->assertRedirect(route('admin.products.index'));
+            ->assertRedirect(route('admin.home'));
 
         $this->assertAuthenticatedAs($admin);
     }

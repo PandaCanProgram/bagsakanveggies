@@ -14,7 +14,7 @@ class AuthController extends Controller
     public function create(): View|RedirectResponse
     {
         if (Auth::user()?->is_admin) {
-            return redirect()->route('admin.products.index');
+            return redirect()->route('admin.home');
         }
 
         return view('admin.auth.login');
@@ -35,7 +35,7 @@ class AuthController extends Controller
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('admin.products.index'));
+        return redirect()->intended(route('admin.home'));
     }
 
     public function destroy(Request $request): RedirectResponse
