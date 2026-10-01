@@ -124,6 +124,16 @@ class Product extends Model
         self::CATEGORY_FRUIT => 'Fruits',
     ];
 
+    /**
+     * What the admin pages call one product of each category.
+     *
+     * @var array<string, string>
+     */
+    public const ADMIN_NAMES = [
+        self::CATEGORY_VEGETABLE => 'veggie',
+        self::CATEGORY_FRUIT => 'fruit',
+    ];
+
     protected $fillable = ['name', 'note', 'category', 'variants', 'sort_order'];
 
     protected $attributes = [
@@ -137,6 +147,14 @@ class Product extends Model
     public function isFruit(): bool
     {
         return $this->category === self::CATEGORY_FRUIT;
+    }
+
+    /**
+     * Admin page where a category's products are managed: Veggies at /admin/products, Fruits at ?category=fruit.
+     */
+    public static function adminListUrl(string $category): string
+    {
+        return route('admin.products.index', $category === self::CATEGORY_VEGETABLE ? [] : ['category' => $category]);
     }
 
     public function variant(int $index): ?array

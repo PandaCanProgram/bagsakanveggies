@@ -1,6 +1,7 @@
 @extends('layouts.admin')
 
 @section('title', 'Dashboard')
+@section('nav', 'dashboard')
 
 @section('content')
     @php

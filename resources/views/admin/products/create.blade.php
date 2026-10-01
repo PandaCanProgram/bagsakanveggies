@@ -1,16 +1,21 @@
 @extends('layouts.admin')
 
-@section('title', 'Add veggie')
+@php
+    $noun = \App\Models\Product::ADMIN_NAMES[$product->category];
+@endphp
+
+@section('title', 'Add '.$noun)
+@section('nav', $product->category)
 
 @section('content')
-    <a href="{{ route('admin.products.index') }}" class="a-link-muted a-back">
+    <a href="{{ \App\Models\Product::adminListUrl($product->category) }}" class="a-link-muted a-back">
         <x-admin.icon name="arrow-left" :size="16" />
-        All veggies
+        All {{ \Illuminate\Support\Str::plural($noun) }}
     </a>
 
     <div class="a-page-head">
         <div>
-            <h1 class="a-page-title">Add a veggie</h1>
+            <h1 class="a-page-title">Add a {{ $noun }}</h1>
             <p class="a-muted">It shows up on the store as soon as you save.</p>
         </div>
     </div>

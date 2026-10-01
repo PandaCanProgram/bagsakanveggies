@@ -7,8 +7,10 @@ use App\Http\Requests\Admin\SaveProductRequest;
 use App\Http\Requests\Admin\UpdatePricesRequest;
 use App\Models\Product;
 use Illuminate\Http\RedirectResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 class ProductController extends Controller
@@ -18,20 +20,26 @@ class ProductController extends Controller
      */
     protected const IMAGE_DIRECTORY = 'products';
 
-    public function index(): View
+    /**
+     * The Veggies or Fruits list (?category=fruit).
+     */
+    public function index(Request $request): View
     {
-        $products = Product::orderBy('sort_order')->orderBy('id')->get();
+        $category = $this->requestedCategory($request);
+        $products = Product::where('category', $category)->orderBy('sort_order')->orderBy('id')->get();
 
         return view('admin.products.index', [
+            'category' => $category,
             'products' => $products,
             'lastUpdatedAt' => $products->max('updated_at'),
         ]);
     }
 
-    public function create(): View
+    public function create(Request $request): View
     {
         return view('admin.products.create', [
             'product' => new Product([
+                'category' => $this->requestedCategory($request),
                 'variants' => [
                     ['label' => '10 kg bag', 'price' => null],
                     ['label' => '1 kg', 'price' => null],
@@ -55,7 +63,7 @@ class ProductController extends Controller
             $product->save();
         });
 
-        return redirect()->route('admin.products.index')
+        return redirect(Product::adminListUrl($product->category))
             ->with('status', "{$product->name} is now live on the store.");
     }
 
@@ -75,7 +83,7 @@ class ProductController extends Controller
             Storage::disk('public')->delete($replacedImagePath);
         }
 
-        return redirect()->route('admin.products.index')
+        return redirect(Product::adminListUrl($product->category))
             ->with('status', "Saved changes to {$product->name}.");
     }
 
@@ -87,7 +95,7 @@ class ProductController extends Controller
             Storage::disk('public')->delete($product->image_path);
         }
 
-        return redirect()->route('admin.products.index')
+        return redirect(Product::adminListUrl($product->category))
             ->with('status', "{$product->name} was deleted and is no longer on the store.");
     }
 
@@ -120,11 +128,27 @@ class ProductController extends Controller
             return $updatedCount;
         });
 
-        return redirect()->route('admin.products.index')->with('status', match ($updatedCount) {
+        // Back to the list the prices were saved from, Veggies or Fruits.
+        $category = $request->validated('category') ?? Product::CATEGORY_VEGETABLE;
+        $name = Product::ADMIN_NAMES[$category];
+
+        return redirect(Product::adminListUrl($category))->with('status', match ($updatedCount) {
             0 => 'No price changes to save.',
-            1 => 'Updated prices for 1 veggie. The store shows them now.',
-            default => "Updated prices for {$updatedCount} veggies. The store shows them now.",
+            1 => "Updated prices for 1 {$name}. The store shows them now.",
+            default => "Updated prices for {$updatedCount} ".Str::plural($name).'. The store shows them now.',
         });
+    }
+
+    /**
+     * The category picked with ?category=fruit, Veggies by default. Anything else is not a page.
+     */
+    protected function requestedCategory(Request $request): string
+    {
+        $category = $request->query('category', Product::CATEGORY_VEGETABLE);
+
+        abort_unless(is_string($category) && array_key_exists($category, Product::CATEGORIES), 404);
+
+        return $category;
     }
 
     /**

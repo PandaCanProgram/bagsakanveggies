@@ -1,4 +1,5 @@
 @php
+    $noun = \App\Models\Product::ADMIN_NAMES[$product->category];
     $formState = [
         'name' => old('name', $product->name ?? ''),
         'note' => old('note', $product->note ?? ''),
@@ -80,7 +81,7 @@
 
             <div class="a-photo">
                 <div class="a-photo-frame" x-show="previewImage" x-cloak>
-                    <img :src="previewImage" alt="Photo of this veggie" class="a-photo-img">
+                    <img :src="previewImage" alt="Photo of this {{ $noun }}" class="a-photo-img">
                     <span class="a-photo-badge" x-show="newImageUrl">New photo · saved when you save</span>
                 </div>
 
@@ -114,7 +115,7 @@
                 @error('image')
                     <p id="image-error" class="a-field-error">{{ $message }}</p>
                 @enderror
-                <p id="image-hint" class="a-hint">Shown at the top of this veggie’s card on the store. Landscape photos look best; big phone photos are shrunk automatically.</p>
+                <p id="image-hint" class="a-hint">Shown at the top of this {{ $noun }}’s card on the store. Landscape photos look best; big phone photos are shrunk automatically.</p>
             </div>
         </section>
 
@@ -160,7 +161,7 @@
 
                         <button type="button" class="a-icon-btn a-icon-btn-danger" @click="removeVariant(index)"
                                 :disabled="variants.length === 1" :aria-label="`Remove size ${variant.label || index + 1}`"
-                                :title="variants.length === 1 ? 'A veggie needs at least one size' : 'Remove this size'">
+                                :title="variants.length === 1 ? @js('A '.$noun.' needs at least one size') : 'Remove this size'">
                             <x-admin.icon name="trash" :size="18" />
                         </button>
                     </li>
@@ -175,7 +176,7 @@
         </fieldset>
 
         <div class="a-form-actions">
-            <a href="{{ route('admin.products.index') }}" class="a-btn a-btn-ghost">Cancel</a>
+            <a href="{{ \App\Models\Product::adminListUrl($product->category) }}" class="a-btn a-btn-ghost">Cancel</a>
             <button type="submit" class="a-btn a-btn-primary" :disabled="submitting">
                 <span x-text="submitting ? 'Saving…' : @js($submitLabel)">{{ $submitLabel }}</span>
             </button>
@@ -192,7 +193,7 @@
                 <img class="a-preview-img" :src="previewImage" alt="" x-show="previewImage" x-cloak>
                 <div class="a-preview-body">
                     <div>
-                        <div class="a-preview-name" x-text="name.trim() || 'Veggie name'"></div>
+                        <div class="a-preview-name" x-text="name.trim() || @js(ucfirst($noun).' name')"></div>
                         <div class="a-preview-note" x-show="note.trim()" x-text="note"></div>
                     </div>
                     <template x-for="variant in variants" :key="variant.id">
