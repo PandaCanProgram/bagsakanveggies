@@ -75,6 +75,7 @@ class AdminProductTest extends TestCase
         $this->actingAs($this->admin)
             ->post(route('admin.products.store'), [
                 'name' => 'Fresh Okra',
+                'category' => 'vegetable',
                 'note' => '(Batangas)',
                 'variants' => [
                     ['label' => '5 kg bag', 'price' => '450'],
@@ -105,6 +106,7 @@ class AdminProductTest extends TestCase
         $this->actingAs($this->admin)
             ->post(route('admin.products.store'), [
                 'name' => 'Fresh Carrots',
+                'category' => 'vegetable',
                 'variants' => [
                     ['label' => 'per kg', 'price' => '0'],
                     ['label' => 'Per KG', 'price' => '12.5'],
@@ -122,6 +124,7 @@ class AdminProductTest extends TestCase
         $this->actingAs($this->admin)
             ->put(route('admin.products.update', $product), [
                 'name' => 'Fresh Carrots',
+                'category' => 'vegetable',
                 'note' => '(Benguet)',
                 'variants' => [
                     ['label' => '10 kg bag', 'price' => '750'],
@@ -133,6 +136,54 @@ class AdminProductTest extends TestCase
 
         $this->assertSame('(Benguet)', $product->note);
         $this->assertSame([['label' => '10 kg bag', 'price' => 750]], $product->variants);
+    }
+
+    public function test_admin_can_move_a_product_to_the_fruits_page(): void
+    {
+        $saba = $this->makeProduct('Saging Saba');
+
+        $this->actingAs($this->admin)
+            ->put(route('admin.products.update', $saba), [
+                'name' => 'Saging Saba',
+                'category' => 'fruit',
+                'variants' => $saba->variants,
+            ])
+            ->assertRedirect(route('admin.products.index'));
+
+        $this->assertSame(Product::CATEGORY_FRUIT, $saba->refresh()->category);
+
+        $this->get(route('products.fruits'))->assertSee('Saging Saba');
+        $this->get(route('products.index'))->assertDontSee('Saging Saba');
+        $this->get(route('admin.products.index'))->assertSeeInOrder(['Saging Saba', 'Fruits page']);
+        $this->get(route('admin.products.edit', $saba))->assertSee('<option value="fruit" selected>', false);
+    }
+
+    public function test_store_page_must_be_vegetables_or_fruits(): void
+    {
+        $this->actingAs($this->admin)
+            ->post(route('admin.products.store'), [
+                'name' => 'Fresh Okra',
+                'category' => 'meat',
+                'variants' => [['label' => 'per kg', 'price' => '95']],
+            ])
+            ->assertSessionHasErrors('category');
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.products.store'), [
+                'name' => 'Fresh Okra',
+                'variants' => [['label' => 'per kg', 'price' => '95']],
+            ])
+            ->assertSessionHasErrors('category');
+
+        $this->assertSame(0, Product::count());
+    }
+
+    public function test_new_veggie_form_starts_on_the_vegetables_page(): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('admin.products.create'))
+            ->assertOk()
+            ->assertSee('<option value="vegetable" selected>', false);
     }
 
     public function test_admin_can_update_many_prices_at_once(): void
@@ -192,6 +243,7 @@ class AdminProductTest extends TestCase
         $this->actingAs($this->admin)
             ->post(route('admin.products.store'), [
                 'name' => 'Fresh Okra',
+                'category' => 'vegetable',
                 'variants' => [['label' => 'per kg', 'price' => '95']],
                 'image' => $this->photo('okra.png'),
             ])
@@ -226,6 +278,7 @@ class AdminProductTest extends TestCase
         $this->actingAs($this->admin)
             ->put(route('admin.products.update', $product), [
                 'name' => 'Fresh Carrots',
+                'category' => 'vegetable',
                 'variants' => $product->variants,
                 'image' => $this->photo('new-carrots.png'),
             ])
@@ -248,6 +301,7 @@ class AdminProductTest extends TestCase
         $this->actingAs($this->admin)
             ->put(route('admin.products.update', $product), [
                 'name' => 'Fresh Carrots',
+                'category' => 'vegetable',
                 'variants' => $product->variants,
                 'remove_image' => '1',
             ])
@@ -267,6 +321,7 @@ class AdminProductTest extends TestCase
         $this->actingAs($this->admin)
             ->put(route('admin.products.update', $product), [
                 'name' => 'Fresh Carrots',
+                'category' => 'vegetable',
                 'variants' => $product->variants,
                 'remove_image' => '0',
             ])
@@ -287,6 +342,7 @@ class AdminProductTest extends TestCase
         $this->actingAs($this->admin)
             ->post(route('admin.products.store'), [
                 'name' => 'Fresh Okra',
+                'category' => 'vegetable',
                 'variants' => [['label' => 'per kg', 'price' => '95']],
                 'image' => new UploadedFile($textFile, 'okra.jpg', 'image/jpeg', null, true),
             ])

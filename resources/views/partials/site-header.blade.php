@@ -14,7 +14,8 @@
             </a>
         @else
             <nav class="primary-nav" aria-label="Main">
-                <a href="#products">Vegetables</a>
+                <a href="{{ route('products.index') }}" @if (request()->routeIs('products.index')) aria-current="page" @endif>Vegetables</a>
+                <a href="{{ route('products.fruits') }}" @if (request()->routeIs('products.fruits')) aria-current="page" @endif>Fruits</a>
                 @if ($messengerPageUrl)
                     <a href="{{ $messengerPageUrl }}" target="_blank" rel="noopener">Message us</a>
                 @endif

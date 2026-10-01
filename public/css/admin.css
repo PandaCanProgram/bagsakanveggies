@@ -609,6 +609,17 @@ h1, h2, h3, p { margin: 0; }
 
 .a-product-note { display: block; font-size: 14px; color: var(--color-muted-foreground); }
 
+.a-product-tag {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .a-col-updated { font-size: 14px; white-space: nowrap; }
 
 td.a-col-updated { padding-top: 36px !important; }

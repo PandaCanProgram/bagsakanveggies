@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Admin;
 
+use App\Models\Product;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
@@ -31,6 +32,7 @@ class SaveProductRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:100', Rule::unique('products', 'name')->ignore($this->route('product'))],
             'note' => ['nullable', 'string', 'max:100'],
+            'category' => ['required', Rule::in(array_keys(Product::CATEGORIES))],
             'variants' => ['required', 'array', 'min:1', 'max:'.self::MAX_VARIANTS],
             'variants.*.label' => ['required', 'string', 'max:40', 'distinct:ignore_case'],
             'variants.*.price' => ['required', 'integer', 'min:1', 'max:'.self::MAX_PRICE],
@@ -46,6 +48,8 @@ class SaveProductRequest extends FormRequest
     {
         return [
             'name.unique' => 'A veggie with this name already exists.',
+            'category.required' => 'Choose which page it goes on.',
+            'category.in' => 'Choose which page it goes on.',
             'variants.required' => 'Add at least one size and price.',
             'variants.max' => 'A veggie can have up to '.self::MAX_VARIANTS.' sizes.',
             'variants.*.label.required' => 'Enter a size, e.g. “1 kg”.',
@@ -75,13 +79,14 @@ class SaveProductRequest extends FormRequest
     /**
      * Product attributes ready to save, with variants re-indexed and prices as whole pesos.
      *
-     * @return array{name: string, note: string|null, variants: list<array{label: string, price: int}>}
+     * @return array{name: string, note: string|null, category: string, variants: list<array{label: string, price: int}>}
      */
     public function productAttributes(): array
     {
         return [
             'name' => $this->validated('name'),
             'note' => $this->validated('note'),
+            'category' => $this->validated('category'),
             'variants' => collect($this->validated('variants'))
                 ->map(fn (array $variant): array => [
                     'label' => $variant['label'],

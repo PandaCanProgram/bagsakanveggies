@@ -57,6 +57,20 @@
                         <p id="note-error" class="a-field-error">{{ $message }}</p>
                     @enderror
                 </div>
+
+                <div class="a-field">
+                    <label for="category" class="a-label">Store page <span class="a-required" aria-hidden="true">*</span></label>
+                    <select id="category" name="category" class="a-input @error('category') is-invalid @enderror" required
+                            aria-describedby="category-hint @error('category') category-error @enderror" @error('category') aria-invalid="true" @enderror>
+                        @foreach (\App\Models\Product::CATEGORIES as $value => $label)
+                            <option value="{{ $value }}" @selected(old('category', $product->category) === $value)>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                    <p id="category-hint" class="a-hint">Which page customers find it on.</p>
+                    @error('category')
+                        <p id="category-error" class="a-field-error">{{ $message }}</p>
+                    @enderror
+                </div>
             </div>
         </section>
 

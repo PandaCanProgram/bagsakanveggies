@@ -63,7 +63,7 @@
                         </thead>
                         <tbody>
                             @foreach ($products as $product)
-                                <tr data-name="{{ strtolower(trim($product->name.' '.$product->note)) }}" x-show="matches($el.dataset.name)">
+                                <tr data-name="{{ strtolower(trim($product->name.' '.$product->note.($product->isFruit() ? ' fruits' : ''))) }}" x-show="matches($el.dataset.name)">
                                     <th scope="row" class="a-cell-name">
                                         <div class="a-name-wrap">
                                             @if ($imageUrl = $product->imageUrl())
@@ -75,6 +75,9 @@
                                                 <span class="a-product-name">{{ $product->name }}</span>
                                                 @if ($product->note)
                                                     <span class="a-product-note">{{ $product->note }}</span>
+                                                @endif
+                                                @if ($product->isFruit())
+                                                    <span class="a-product-tag">Fruits page</span>
                                                 @endif
                                             </span>
                                         </div>

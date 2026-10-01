@@ -28,11 +28,34 @@ class Product extends Model
 
     protected const DEFAULT_SWATCH = '#6b8f5e';
 
-    protected $fillable = ['name', 'note', 'variants', 'sort_order'];
+    public const CATEGORY_VEGETABLE = 'vegetable';
+
+    public const CATEGORY_FRUIT = 'fruit';
+
+    /**
+     * Store pages a product can be on, keyed by category, with the page name.
+     *
+     * @var array<string, string>
+     */
+    public const CATEGORIES = [
+        self::CATEGORY_VEGETABLE => 'Vegetables',
+        self::CATEGORY_FRUIT => 'Fruits',
+    ];
+
+    protected $fillable = ['name', 'note', 'category', 'variants', 'sort_order'];
+
+    protected $attributes = [
+        'category' => self::CATEGORY_VEGETABLE,
+    ];
 
     protected $casts = [
         'variants' => 'array',
     ];
+
+    public function isFruit(): bool
+    {
+        return $this->category === self::CATEGORY_FRUIT;
+    }
 
     public function variant(int $index): ?array
     {
