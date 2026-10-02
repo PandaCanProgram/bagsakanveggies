@@ -24,7 +24,7 @@
 
     @auth
         @php
-            // Each page names its menu item with @section('nav', ...): dashboard, vegetable or fruit.
+            // Each page names its menu item with @section('nav', ...): dashboard, vegetable, fruit or print.
             $activeNav = trim(\Illuminate\Support\Facades\View::yieldContent('nav'));
         @endphp
 
@@ -58,6 +58,10 @@
                 <a href="{{ \App\Models\Product::adminListUrl(\App\Models\Product::CATEGORY_FRUIT) }}" class="a-sidenav-link" @if ($activeNav === \App\Models\Product::CATEGORY_FRUIT) aria-current="page" @endif>
                     <x-admin.icon name="apple" />
                     <span>Fruits</span>
+                </a>
+                <a href="{{ route('admin.products.print') }}" class="a-sidenav-link" @if ($activeNav === 'print') aria-current="page" @endif>
+                    <x-admin.icon name="printer" />
+                    <span>Print price list</span>
                 </a>
             </nav>
 

@@ -49,14 +49,21 @@
                 </div>
             @endif
 
-            <div class="a-card">
+            <div class="a-card" x-data="productOrder(@js(['url' => route('admin.products.order.update'), 'category' => $category]))">
                 <div class="a-toolbar">
                     <div class="a-search">
                         <label for="product-search" class="sr-only">Search {{ $nouns }}</label>
                         <x-admin.icon name="search" :size="18" class="a-search-icon" />
                         <input id="product-search" type="search" class="a-input a-search-input" placeholder="Search {{ $nouns }}" x-model="query" autocomplete="off" @keydown.enter.prevent>
                     </div>
-                    <p class="a-toolbar-hint a-muted">Type a new price, then save. Changes go live on the store right away.</p>
+                    <p class="a-toolbar-hint a-muted">Type a new price, then save. Drag <x-admin.icon name="grip-vertical" :size="16" class="a-inline-icon" /> to change the order on the store.</p>
+                    <p id="order-help" class="sr-only">Drag to change where this shows on the store, or press the up or down arrow. The new order saves by itself.</p>
+                    {{-- Filled in by the order list below as rows are moved. --}}
+                    <p id="order-status" class="a-order-status" role="status" aria-live="polite" x-cloak x-show="orderStatus" :class="{ 'is-error': orderFailed }">
+                        <x-admin.icon name="check-circle" :size="18" x-show="!orderFailed && !orderSaving" />
+                        <x-admin.icon name="alert-circle" :size="18" x-show="orderFailed" />
+                        <span x-text="orderStatus"></span>
+                    </p>
                 </div>
 
                 <div class="a-table-wrap">
@@ -69,11 +76,19 @@
                                 <th scope="col"><span class="sr-only">Actions</span></th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody x-ref="rows">
                             @foreach ($products as $product)
-                                <tr data-name="{{ strtolower(trim($product->name.' '.$product->note)) }}" x-show="matches($el.dataset.name)">
+                                <tr data-name="{{ strtolower(trim($product->name.' '.$product->note)) }}" data-product-id="{{ $product->id }}" data-product-name="{{ $product->name }}" x-show="matches($el.dataset.name)">
                                     <th scope="row" class="a-cell-name">
                                         <div class="a-name-wrap">
+                                            {{-- Drag to move; with the keyboard, focus it and press ↑ or ↓. Off while searching, since hidden rows would make the order unclear. --}}
+                                            <button type="button" class="a-drag-handle"
+                                                    aria-label="Move {{ $product->name }}" aria-describedby="order-help"
+                                                    :aria-disabled="searching.toString()"
+                                                    :title="searching ? 'Clear the search to change the order' : 'Drag to move, or press ↑ / ↓'"
+                                                    @keydown.up.prevent="move($el, -1)" @keydown.down.prevent="move($el, 1)">
+                                                <x-admin.icon name="grip-vertical" :size="18" />
+                                            </button>
                                             @if ($imageUrl = $product->imageUrl())
                                                 <img src="{{ $imageUrl }}" alt="" class="a-thumb" width="48" height="48" loading="lazy" decoding="async">
                                             @else

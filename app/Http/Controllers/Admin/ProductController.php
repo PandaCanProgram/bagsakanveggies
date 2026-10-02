@@ -5,7 +5,11 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\SaveProductRequest;
 use App\Http\Requests\Admin\UpdatePricesRequest;
+use App\Http\Requests\Admin\UpdateProductOrderRequest;
 use App\Models\Product;
+use App\Services\DailyOrderSummary;
+use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -26,12 +30,30 @@ class ProductController extends Controller
     public function index(Request $request): View
     {
         $category = $this->requestedCategory($request);
-        $products = Product::where('category', $category)->orderBy('sort_order')->orderBy('id')->get();
+        $products = $this->productsIn($category);
 
         return view('admin.products.index', [
             'category' => $category,
             'products' => $products,
             'lastUpdatedAt' => $products->max('updated_at'),
+        ]);
+    }
+
+    /**
+     * The Veggies or Fruits page as a sheet to print or download as a PDF (?category=fruit):
+     * each product's photo, name and prices.
+     */
+    public function print(Request $request): View
+    {
+        $category = $this->requestedCategory($request);
+        $pageName = Product::CATEGORIES[$category];
+
+        return view('admin.products.print', [
+            'category' => $category,
+            'products' => $this->productsIn($category),
+            'pdfTitle' => "Bagsakan Veggies Phils — {$pageName}",
+            // Dated in Manila, like the dashboard: price-list-vegetables-2026-10-02.pdf
+            'pdfFilename' => 'price-list-'.Str::slug($pageName).'-'.DailyOrderSummary::today()->toDateString().'.pdf',
         ]);
     }
 
@@ -137,6 +159,36 @@ class ProductController extends Controller
             1 => "Updated prices for 1 {$name}. The store shows them now.",
             default => "Updated prices for {$updatedCount} ".Str::plural($name).'. The store shows them now.',
         });
+    }
+
+    /**
+     * A category's products in the order the store shows them.
+     *
+     * @return Collection<int, Product>
+     */
+    protected function productsIn(string $category): Collection
+    {
+        return Product::where('category', $category)->orderBy('sort_order')->orderBy('id')->get();
+    }
+
+    /**
+     * Save the order the Veggies or Fruits list was dragged into; the store shows products in this order.
+     */
+    public function updateOrder(UpdateProductOrderRequest $request): JsonResponse
+    {
+        /** @var list<int> $ids */
+        $ids = array_map('intval', $request->validated('ids'));
+
+        // Moving a product isn't a change to it, so its "Last changed" time stays as it was.
+        Product::withoutTimestamps(fn () => DB::transaction(function () use ($ids) {
+            $products = Product::whereKey($ids)->get()->keyBy('id');
+
+            foreach ($ids as $position => $id) {
+                $products[$id]->update(['sort_order' => $position]);
+            }
+        }));
+
+        return response()->json(['message' => 'New order saved. The store shows it now.']);
     }
 
     /**
