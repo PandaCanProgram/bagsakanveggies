@@ -38,22 +38,25 @@ class AdminDashboardTest extends TestCase
     }
 
     /**
-     * Place an order at the given Manila time, the way checkout saves it.
+     * Place an order at the given Manila time, the way checkout saves it: every size costs ₱100.
      *
      * @param  list<array{0: Product, 1: string, 2: int|float}>  $lines  [product, size, qty] per line.
+     * @param  array<string, string>  $customer  Name, number or address to use instead of Juan's.
      */
-    protected function placeOrder(string $manilaTime, array $lines): Order
+    protected function placeOrder(string $manilaTime, array $lines, array $customer = []): Order
     {
         $this->travelTo(CarbonImmutable::parse($manilaTime, 'Asia/Manila'));
+        $total = array_sum(array_map(fn (array $line) => 100 * $line[2], $lines));
 
         $order = Order::create([
             'full_name' => 'Juan Dela Cruz',
             'contact_number' => '09171234567',
             'delivery_address' => 'Brgy 1',
+            ...$customer,
             'payment_method' => 'GCash (via Messenger)',
-            'subtotal' => 0,
+            'subtotal' => $total,
             'delivery_fee' => 0,
-            'total' => 0,
+            'total' => $total,
         ]);
 
         foreach ($lines as [$product, $size, $qty]) {
@@ -111,6 +114,11 @@ class AdminDashboardTest extends TestCase
     public function test_guests_cannot_download_the_order_summary(): void
     {
         $this->get(route('admin.order-summary.export'))->assertRedirect(route('admin.login'));
+    }
+
+    public function test_guests_cannot_download_the_orders_per_person(): void
+    {
+        $this->get(route('admin.orders-per-person.export'))->assertRedirect(route('admin.login'));
     }
 
     public function test_dashboard_adds_up_the_days_orders_per_product(): void
@@ -254,6 +262,144 @@ class AdminDashboardTest extends TestCase
             ->get(route('admin.home', ['date' => '2026-02-30']));
 
         $response->assertSeeText('Pick a day from the calendar.');
+    }
+
+    public function test_per_person_view_lists_what_each_person_ordered_and_owes(): void
+    {
+        $sayote = $this->makeProduct('Sayote');
+        $carrots = $this->makeProduct('Fresh Carrots');
+        $orange = $this->makeProduct('Orange', ['1 piece']);
+        $this->placeOrder('2026-10-01 08:15', [[$sayote, '1 kg', 1.5], [$carrots, '10 kg bag', 2]]);
+        $this->placeOrder('2026-10-01 11:40', [[$orange, '1 piece', 3]], [
+            'full_name' => 'Maria Santos',
+            'contact_number' => '09281112222',
+            'delivery_address' => 'Purok 5, Brgy San Jose',
+        ]);
+        $this->placeOrder('2026-10-02 00:30', [[$sayote, '1 kg', 1]], ['full_name' => 'Pedro Next Day', 'contact_number' => '09993334444']);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.home', ['date' => '2026-10-01', 'view' => 'people']));
+
+        $response->assertOk()
+            ->assertSeeTextInOrder([
+                'Orders per person',
+                'October 1, 2026',
+                'Orders received: 2 from 2 people',
+                '1. Juan Dela Cruz', '09171234567', 'Brgy 1', 'Order #1 · 8:15 AM',
+                '🥕 Fresh Carrots', '10 kg bag', '2', '₱200',
+                '🍐 Sayote', '1 kg', '1.5', '₱150',
+                'TOTAL', '₱350',
+                '2. Maria Santos', '09281112222', 'Purok 5, Brgy San Jose', 'Order #2 · 11:40 AM',
+                '🍊 Orange', '1 piece', '3', '₱300',
+                'TOTAL', '₱300',
+                'TOTAL FOR THE DAY', '₱650',
+            ])
+            ->assertDontSeeText('Pedro Next Day')
+            ->assertDontSeeText('Total Qty Ordered');
+    }
+
+    public function test_orders_from_the_same_number_are_packed_as_one_person(): void
+    {
+        $sayote = $this->makeProduct('Sayote');
+        $okra = $this->makeProduct('Fresh Okra');
+        $this->placeOrder('2026-10-01 08:00', [[$sayote, '1 kg', 1]], ['full_name' => 'Juan Dela Cruz']);
+        $this->placeOrder('2026-10-01 13:30', [[$sayote, '1 kg', 2], [$okra, '1 kg', 1]], ['full_name' => 'juan  dela cruz']);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.home', ['date' => '2026-10-01', 'view' => 'people']));
+
+        $response->assertSeeTextInOrder([
+            'Orders received: 2 from 1 person',
+            '1. Juan Dela Cruz',
+            'Order #1 · 8:00 AM', 'Order #2 · 1:30 PM',
+            'Fresh Okra', '1 kg', '1', '₱100',
+            'Sayote', '1 kg', '3', '₱300',
+            'TOTAL', '₱400',
+        ])->assertDontSeeText('juan dela cruz')->assertDontSeeText('2. ');
+    }
+
+    public function test_switching_views_and_days_keeps_the_other_choice(): void
+    {
+        $this->travelTo(CarbonImmutable::parse('2026-10-02 09:00', 'Asia/Manila'));
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.home', ['date' => '2026-10-01', 'view' => 'people']))
+            ->assertSee('href="'.e(route('admin.home', ['date' => '2026-09-30', 'view' => 'people'])).'"', false)
+            ->assertSee('href="'.e(route('admin.home', ['date' => '2026-10-02', 'view' => 'people'])).'"', false)
+            ->assertSee('href="'.e(route('admin.home', ['date' => '2026-10-01'])).'"', false)
+            ->assertSee('<input type="hidden" name="view" value="people">', false);
+
+        // On today the switch leaves the date out, so a page left open still shows "today" tomorrow.
+        $this->actingAs($this->admin)
+            ->get(route('admin.home'))
+            ->assertSee('href="'.e(route('admin.home', ['view' => 'people'])).'"', false)
+            ->assertDontSee('name="view"', false);
+    }
+
+    public function test_per_person_view_on_a_day_without_orders_says_so(): void
+    {
+        $response = $this->actingAs($this->admin)->get(route('admin.home', ['date' => '2026-10-01', 'view' => 'people']));
+
+        $response->assertSeeText('No orders on this day')
+            ->assertDontSeeText('Download Excel')
+            ->assertDontSeeText('TOTAL FOR THE DAY');
+    }
+
+    public function test_customer_details_are_escaped_on_the_per_person_view(): void
+    {
+        $sayote = $this->makeProduct('Sayote');
+        $this->placeOrder('2026-10-01 08:00', [[$sayote, '1 kg', 1]], [
+            'full_name' => '<script>alert(1)</script>',
+            'delivery_address' => '<img src=x onerror=alert(2)>',
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.home', ['date' => '2026-10-01', 'view' => 'people']));
+
+        $response->assertSee('&lt;script&gt;alert(1)&lt;/script&gt;', false)
+            ->assertDontSee('<script>alert(1)</script>', false)
+            ->assertDontSee('<img src=x', false);
+    }
+
+    #[RequiresPhpExtension('zip')]
+    public function test_orders_per_person_download_as_an_excel_sheet_laid_out_like_the_dashboard(): void
+    {
+        $sayote = $this->makeProduct('Sayote');
+        $carrots = $this->makeProduct('Fresh Carrots');
+        $this->placeOrder('2026-10-01 08:00', [[$sayote, '1 kg', 2], [$carrots, '10 kg bag', 1]]);
+        $this->placeOrder('2026-10-01 10:00', [[$sayote, '1 kg', 0.5]], [
+            'full_name' => 'Maria Santos',
+            'contact_number' => '09281112222',
+            'delivery_address' => 'Purok 5',
+        ]);
+        $this->placeOrder('2026-10-01 16:45', [[$carrots, '1 kg', 1]]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.orders-per-person.export', ['date' => '2026-10-01']));
+
+        $response->assertDownload('orders-per-person-2026-10-01.xlsx')
+            ->assertHeader('Content-Type', SimpleXlsx::MIME_TYPE);
+        $this->assertSame([
+            ['ORDERS PER PERSON'],
+            ['October 1, 2026'],
+            ['Orders received: 3 from 2 people'],
+            [],
+            ['1. Juan Dela Cruz'],
+            ['CP or Viber: 09171234567'],
+            ['Address: Brgy 1'],
+            ['Orders: #1 (8:00 AM), #3 (4:45 PM)'],
+            ['Item', 'Size', 'Qty', 'Amount'],
+            ['🥕 Fresh Carrots', '10 kg bag', '1', '₱100'],
+            ['🥕 Fresh Carrots', '1 kg', '1', '₱100'],
+            ['🍐 Sayote', '1 kg', '2', '₱200'],
+            ['TOTAL', '', '', '₱400'],
+            [],
+            ['2. Maria Santos'],
+            ['CP or Viber: 09281112222'],
+            ['Address: Purok 5'],
+            ['Order: #2 (10:00 AM)'],
+            ['Item', 'Size', 'Qty', 'Amount'],
+            ['🍐 Sayote', '1 kg', '0.5', '₱50'],
+            ['TOTAL', '', '', '₱50'],
+            [],
+            ['TOTAL FOR THE DAY', '', '', '₱450'],
+        ], $this->sheetRows($response->streamedContent()));
     }
 
     #[RequiresPhpExtension('zip')]

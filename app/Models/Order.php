@@ -3,6 +3,9 @@
 namespace App\Models;
 
 use App\Support\Format;
+use Carbon\Carbon;
+use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 
 class Order extends Model
@@ -33,6 +36,18 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    /**
+     * Orders placed from midnight to midnight on the given day, in that day's timezone (orders are saved in UTC).
+     */
+    public function scopePlacedOn(Builder $query, CarbonImmutable $day): void
+    {
+        $start = $day->startOfDay();
+        $appTimezone = config('app.timezone');
+
+        $query->where('created_at', '>=', $start->setTimezone($appTimezone))
+            ->where('created_at', '<', $start->addDay()->setTimezone($appTimezone));
+    }
+
     public function messengerText(): string
     {
         $itemLines = $this->items->map(function (OrderItem $item) {
@@ -48,7 +63,7 @@ class Order extends Model
 
         // Orders placed before checkout stopped asking for a date/time (and notes) still show theirs.
         if ($this->preferred_date && $this->preferred_time) {
-            $text .= "\nPreferred: ".$this->preferred_date->format('M j, Y').' '.\Carbon\Carbon::parse($this->preferred_time)->format('g:i A');
+            $text .= "\nPreferred: ".$this->preferred_date->format('M j, Y').' '.Carbon::parse($this->preferred_time)->format('g:i A');
         }
 
         if ($this->order_notes) {

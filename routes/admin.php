@@ -15,6 +15,7 @@ Route::prefix('admin')->name('admin.')->group(function () {
 
         Route::get('/', [DashboardController::class, 'index'])->name('home');
         Route::get('/order-summary/export', [DashboardController::class, 'export'])->name('order-summary.export');
+        Route::get('/orders-per-person/export', [DashboardController::class, 'exportPerPerson'])->name('orders-per-person.export');
 
         Route::patch('/products/prices', [ProductController::class, 'updatePrices'])->name('products.prices.update');
         Route::resource('products', ProductController::class)->except(['show']);

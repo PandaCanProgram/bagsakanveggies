@@ -19,6 +19,7 @@ class SimpleXlsx
     protected const STYLES = [
         'default' => [0, 0, 0, null],
         'title' => [2, 0, 0, null],
+        'bold' => [1, 0, 0, null],
         'header' => [1, 2, 1, null],
         'header-right' => [1, 2, 1, 'right'],
         'cell' => [0, 0, 1, null],

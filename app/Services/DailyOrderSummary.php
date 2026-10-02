@@ -43,11 +43,9 @@ class DailyOrderSummary
     public static function for(CarbonImmutable $day): self
     {
         $start = $day->setTimezone(self::TIMEZONE)->startOfDay();
-        $appTimezone = config('app.timezone');
 
         $orders = Order::query()
-            ->where('created_at', '>=', $start->setTimezone($appTimezone))
-            ->where('created_at', '<', $start->addDay()->setTimezone($appTimezone))
+            ->placedOn($start)
             ->with('items.product:id,name')
             ->get();
 
