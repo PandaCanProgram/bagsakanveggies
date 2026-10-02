@@ -23,7 +23,8 @@ class ProductController extends Controller
      */
     protected function shelf(string $category, CartService $cart): View
     {
-        $products = Product::where('category', $category)->orderBy('sort_order')->get();
+        // Same order as the admin list, where products are dragged into place.
+        $products = Product::where('category', $category)->orderBy('sort_order')->orderBy('id')->get();
 
         return view('products.index', [
             'category' => $category,

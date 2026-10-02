@@ -673,6 +673,54 @@ td.a-col-updated { padding-top: 36px !important; }
 
 .a-no-results { text-align: center !important; padding: var(--space-8) var(--space-4) !important; color: var(--color-muted-foreground); }
 
+/* Product order: drag a row by its handle to change where it shows on the store */
+.a-drag-handle {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: var(--control-height);
+  margin-left: calc(-1 * var(--space-2));
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-muted-foreground);
+  cursor: grab;
+  /* A finger on the handle drags the row instead of scrolling the page */
+  touch-action: none;
+  transition: background-color var(--duration-fast) ease, color var(--duration-fast) ease;
+}
+
+.a-drag-handle:hover { background: var(--color-muted); color: var(--color-foreground); }
+
+.a-drag-handle[aria-disabled="true"] { cursor: not-allowed; opacity: 0.35; }
+
+.a-drag-handle[aria-disabled="true"]:hover { background: transparent; color: var(--color-muted-foreground); }
+
+/* Where the row will land while it's being dragged */
+.a-table tbody tr.is-drag-placeholder { background: var(--color-primary-soft); }
+
+.a-table tbody tr.is-drag-placeholder > * { opacity: 0.45; }
+
+/* The row following the pointer */
+.is-drag-copy { background: var(--color-card); box-shadow: var(--shadow-lg); cursor: grabbing; }
+
+.a-inline-icon { display: inline-block; vertical-align: -3px; }
+
+.a-order-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-primary);
+}
+
+.a-order-status.is-error { color: var(--color-destructive); }
+
+.a-order-status .a-icon { flex: none; }
+
 /* Empty state */
 .a-empty {
   display: flex;
@@ -1344,6 +1392,106 @@ td.a-col-updated { padding-top: 36px !important; }
   .a-day-total { padding: var(--space-3); }
 }
 
+/* Print price list: the store page with only each product's photo, name and prices.
+   Plain white like the store (public/css/app.css), so the screen shows what comes out of the printer. */
+.a-price-sheet-card { overflow: hidden; }
+
+.a-price-sheet {
+  padding: var(--space-6);
+  background: #ffffff;
+  color: #17231a;
+}
+
+.a-price-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding-bottom: var(--space-4);
+  border-bottom: 2px solid #17231a;
+}
+
+.a-price-sheet-logo { width: 52px; height: 52px; object-fit: contain; flex: none; }
+
+.a-price-sheet-store {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #4a584c;
+}
+
+.a-price-sheet-title { font-size: 26px; font-weight: 700; line-height: 1.2; letter-spacing: -0.01em; }
+
+.a-price-sheet .a-empty .a-muted { color: #4a584c; }
+
+.a-price-sheet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-8) var(--space-6);
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.a-price-sheet-item { display: flex; flex-direction: column; break-inside: avoid; }
+
+.a-price-sheet-photo {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+}
+
+.a-price-sheet-photo-empty { display: grid; place-items: center; color: #e4ddcc; }
+
+.a-price-sheet-name { margin-top: var(--space-2); font-size: 16px; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+
+.a-price-sheet-prices {
+  display: grid;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  line-height: 1.3;
+  color: #4a584c;
+}
+
+.a-price-sheet-prices strong { color: #17231a; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* Phones: 3 small items per row, like the store page */
+@media (max-width: 768px) {
+  .a-price-sheet { padding: var(--space-4) var(--space-3); }
+  .a-price-sheet-title { font-size: 22px; }
+  .a-price-sheet-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5) 6px; }
+  .a-price-sheet-name { margin-top: var(--space-1); font-size: 12px; }
+  .a-price-sheet-prices { gap: 2px; margin-top: var(--space-1); font-size: 10px; }
+}
+
+/* Download PDF: copies of the sheet, one per page, laid out like the printed sheet whatever the screen size.
+   They're built out of sight (public/js/admin.js) and only shown in the copy of the page that becomes the PDF. */
+.a-pdf-stage {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.a-pdf-stage.is-drawing { position: static; width: auto; height: auto; overflow: visible; visibility: visible; }
+
+/* 720px wide = the 190.5mm (7.5in) printable width of Letter paper; sizes match the @media print rules below */
+.a-price-sheet.is-pdf { width: 720px; padding: 0; }
+.a-price-sheet.is-pdf .a-price-sheet-logo { width: 52px; height: 52px; }
+.a-price-sheet.is-pdf .a-price-sheet-title { font-size: 26px; }
+.a-price-sheet.is-pdf .a-price-sheet-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8mm 6mm; margin-top: 6mm; }
+.a-price-sheet.is-pdf .a-price-sheet-grid.is-continued { margin-top: 0; }
+.a-price-sheet.is-pdf .a-price-sheet-name { margin-top: 2mm; font-size: 15px; }
+.a-price-sheet.is-pdf .a-price-sheet-prices { gap: 1mm; margin-top: 1.5mm; font-size: 12.5px; }
+
 /* Printing the dashboard gives just the summary sheet, in black on white */
 @media print {
   :root {
@@ -1365,6 +1513,7 @@ td.a-col-updated { padding-top: 36px !important; }
   .a-flash,
   .a-page-head,
   .a-summary-toolbar,
+  .a-price-sheet-toolbar,
   .a-day-tag { display: none !important; }
 
   .has-sidebar { padding-left: 0; }
@@ -1382,4 +1531,12 @@ td.a-col-updated { padding-top: 36px !important; }
   .a-person { border: 0; border-radius: 0; overflow: visible; break-inside: avoid; }
   .a-person-head { padding: 0 0 var(--space-2); }
   .a-person-details a { text-decoration: none; }
+  /* Price list: 3 items per row, like the client's printed price sheet; an item never splits across pages */
+  .a-price-sheet-card { overflow: visible; }
+  .a-price-sheet { padding: 0; }
+  .a-price-sheet-title { font-size: 26px; }
+  .a-price-sheet-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8mm 6mm; margin-top: 6mm; }
+  /* A printed page is phone-narrow, so set the sizes here instead of taking the phone ones */
+  .a-price-sheet-name { margin-top: 2mm; font-size: 15px; }
+  .a-price-sheet-prices { gap: 1mm; margin-top: 1.5mm; font-size: 12.5px; }
 }

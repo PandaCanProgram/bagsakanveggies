@@ -5,6 +5,7 @@ namespace Tests\Feature\Admin;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
@@ -252,6 +253,127 @@ class AdminProductTest extends TestCase
             ->get(route('admin.products.create'))
             ->assertOk()
             ->assertSee('<option value="vegetable" selected>', false);
+    }
+
+    public function test_price_list_to_print_shows_each_veggies_photo_name_and_prices(): void
+    {
+        $carrots = $this->makeProduct('Fresh Carrots', 700, 110);
+        $carrots->forceFill(['note' => 'Baguio', 'image_path' => 'products/carrots.jpg'])->save();
+        $this->makeProduct('Fresh Garlic', 2200, 250, 1);
+        $this->makeFruit('Red Apples');
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.products.print'))
+            ->assertOk()
+            ->assertSeeInOrder([
+                route('product-photos.show', 'products/carrots.jpg'),
+                'Fresh Carrots',
+                '10 kg bag - <strong>₱700</strong>',
+                'per kg - <strong>₱110</strong>',
+                'Fresh Garlic',
+                '10 kg bag - <strong>₱2,200</strong>',
+            ], false)
+            ->assertDontSee('Baguio')
+            ->assertDontSee('Red Apples')
+            // Lazy photos below the fold would come out blank on paper.
+            ->assertDontSee('loading="lazy"', false);
+    }
+
+    public function test_price_list_to_print_can_show_the_fruits(): void
+    {
+        $this->makeProduct('Fresh Carrots');
+        $this->makeFruit('Red Apples');
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.products.print', ['category' => 'fruit']))
+            ->assertOk()
+            ->assertSee('Red Apples')
+            ->assertDontSee('Fresh Carrots');
+    }
+
+    public function test_price_list_pdf_is_named_after_the_page_and_todays_date_in_manila(): void
+    {
+        // 7:30 AM on October 3 in Manila is still October 2 in UTC.
+        $this->travelTo(CarbonImmutable::parse('2026-10-03 07:30', 'Asia/Manila'));
+        $this->makeProduct('Fresh Carrots');
+        $this->makeFruit('Red Apples');
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.products.print'))
+            ->assertSeeText('Download PDF')
+            ->assertSee('price-list-vegetables-2026-10-03.pdf');
+
+        $this->get(route('admin.products.print', ['category' => 'fruit']))
+            ->assertSee('price-list-fruits-2026-10-03.pdf');
+    }
+
+    public function test_admin_can_drag_veggies_into_a_new_order_that_the_store_follows(): void
+    {
+        $okra = $this->makeProduct('Fresh Okra', sortOrder: 0);
+        $beans = $this->makeProduct('Snap Beans', sortOrder: 1);
+        $carrots = $this->makeProduct('Fresh Carrots', sortOrder: 2);
+        $apples = $this->makeFruit('Red Apples');
+        $lastChanged = $carrots->updated_at;
+        $this->travel(2)->hours();
+
+        $this->actingAs($this->admin)
+            ->get(route('admin.products.index'))
+            ->assertSee('aria-label="Move Snap Beans"', false);
+
+        $this->patchJson(route('admin.products.order.update'), [
+            'category' => 'vegetable',
+            'ids' => [$beans->id, $carrots->id, $okra->id],
+        ])
+            ->assertOk()
+            ->assertJson(['message' => 'New order saved. The store shows it now.']);
+
+        $this->get(route('products.index'))->assertSeeInOrder(['Snap Beans', 'Fresh Carrots', 'Fresh Okra']);
+        $this->get(route('admin.products.index'))->assertSeeInOrder(['Snap Beans', 'Fresh Carrots', 'Fresh Okra']);
+        $this->get(route('admin.products.print'))->assertSeeInOrder(['Snap Beans', 'Fresh Carrots', 'Fresh Okra']);
+        // Fruits keep their own order, and moving a veggie doesn't count as changing it.
+        $this->assertSame(0, $apples->refresh()->sort_order);
+        $this->assertEquals($lastChanged, $carrots->refresh()->updated_at);
+    }
+
+    public function test_new_order_must_list_exactly_the_products_on_that_page(): void
+    {
+        $okra = $this->makeProduct('Fresh Okra', sortOrder: 0);
+        $beans = $this->makeProduct('Snap Beans', sortOrder: 1);
+        $apples = $this->makeFruit('Red Apples');
+        $changed = 'The list changed since this page was opened. Reload the page and try again.';
+        $this->actingAs($this->admin);
+
+        // Okra was added in another tab after the page was opened.
+        $this->patchJson(route('admin.products.order.update'), ['category' => 'vegetable', 'ids' => [$beans->id]])
+            ->assertJsonValidationErrors(['ids' => $changed]);
+        // A fruit can't be put among the veggies.
+        $this->patchJson(route('admin.products.order.update'), ['category' => 'vegetable', 'ids' => [$beans->id, $okra->id, $apples->id]])
+            ->assertJsonValidationErrors(['ids' => $changed]);
+        $this->patchJson(route('admin.products.order.update'), ['category' => 'vegetable', 'ids' => [$beans->id, $beans->id]])
+            ->assertJsonValidationErrors('ids.0');
+        $this->patchJson(route('admin.products.order.update'), ['category' => 'meat', 'ids' => [$beans->id, $okra->id]])
+            ->assertJsonValidationErrors('category');
+
+        $this->assertSame([0, 1], [$okra->refresh()->sort_order, $beans->refresh()->sort_order]);
+    }
+
+    public function test_non_admins_cannot_change_the_order(): void
+    {
+        $okra = $this->makeProduct('Fresh Okra', sortOrder: 0);
+        $beans = $this->makeProduct('Snap Beans', sortOrder: 1);
+
+        $this->actingAs(User::factory()->create())
+            ->patchJson(route('admin.products.order.update'), ['category' => 'vegetable', 'ids' => [$beans->id, $okra->id]])
+            ->assertForbidden();
+
+        $this->assertSame(0, $okra->refresh()->sort_order);
+    }
+
+    public function test_non_admins_cannot_see_the_price_list(): void
+    {
+        $this->actingAs(User::factory()->create())
+            ->get(route('admin.products.print'))
+            ->assertForbidden();
     }
 
     public function test_admin_can_update_many_prices_at_once(): void
