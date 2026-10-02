@@ -1,38 +1,46 @@
 @extends('layouts.admin')
 
-@section('title', 'Veggies & prices')
+@php
+    // This page lists one category: "veggie" or "fruit".
+    $noun = \App\Models\Product::ADMIN_NAMES[$category];
+    $nouns = \Illuminate\Support\Str::plural($noun);
+@endphp
+
+@section('title', ucfirst($nouns))
+@section('nav', $category)
 
 @section('content')
     <div class="a-page-head">
         <div>
-            <h1 class="a-page-title">Veggies &amp; prices</h1>
+            <h1 class="a-page-title">{{ ucfirst($nouns) }}</h1>
             <p class="a-muted">
-                {{ trans_choice(':count veggie|:count veggies', $products->count()) }} on the store
+                {{ $products->count() }} {{ \Illuminate\Support\Str::plural($noun, $products->count()) }} on the store
                 @if ($lastUpdatedAt)
                     · last change {{ $lastUpdatedAt->diffForHumans() }}
                 @endif
             </p>
         </div>
-        <a href="{{ route('admin.products.create') }}" class="a-btn a-btn-primary">
+        <a href="{{ route('admin.products.create', ['category' => $category]) }}" class="a-btn a-btn-primary">
             <x-admin.icon name="plus" :size="18" />
-            Add veggie
+            Add {{ $noun }}
         </a>
     </div>
 
     @if ($products->isEmpty())
         <div class="a-card a-empty">
-            <span class="a-empty-icon"><x-admin.icon name="carrot" :size="28" /></span>
-            <h2 class="a-empty-title">No veggies yet</h2>
-            <p class="a-muted">Add your first veggie and it will show up on the store right away.</p>
-            <a href="{{ route('admin.products.create') }}" class="a-btn a-btn-primary">
+            <span class="a-empty-icon"><x-admin.icon :name="$category === \App\Models\Product::CATEGORY_FRUIT ? 'apple' : 'carrot'" :size="28" /></span>
+            <h2 class="a-empty-title">No {{ $nouns }} yet</h2>
+            <p class="a-muted">Add your first {{ $noun }} and it will show up on the store right away.</p>
+            <a href="{{ route('admin.products.create', ['category' => $category]) }}" class="a-btn a-btn-primary">
                 <x-admin.icon name="plus" :size="18" />
-                Add veggie
+                Add {{ $noun }}
             </a>
         </div>
     @else
         <form method="POST" action="{{ route('admin.products.prices.update') }}" x-data="priceEditor" @input="refresh()" @submit="submitting = true" novalidate>
             @csrf
             @method('PATCH')
+            <input type="hidden" name="category" value="{{ $category }}">
 
             @if ($errors->any())
                 <div class="a-alert a-alert-error" role="alert" tabindex="-1" x-init="$el.focus()">
@@ -44,9 +52,9 @@
             <div class="a-card">
                 <div class="a-toolbar">
                     <div class="a-search">
-                        <label for="veggie-search" class="sr-only">Search veggies</label>
+                        <label for="product-search" class="sr-only">Search {{ $nouns }}</label>
                         <x-admin.icon name="search" :size="18" class="a-search-icon" />
-                        <input id="veggie-search" type="search" class="a-input a-search-input" placeholder="Search veggies" x-model="query" autocomplete="off" @keydown.enter.prevent>
+                        <input id="product-search" type="search" class="a-input a-search-input" placeholder="Search {{ $nouns }}" x-model="query" autocomplete="off" @keydown.enter.prevent>
                     </div>
                     <p class="a-toolbar-hint a-muted">Type a new price, then save. Changes go live on the store right away.</p>
                 </div>
@@ -55,7 +63,7 @@
                     <table class="a-table">
                         <thead>
                             <tr>
-                                <th scope="col">Veggie</th>
+                                <th scope="col">{{ ucfirst($noun) }}</th>
                                 <th scope="col">Sizes &amp; prices</th>
                                 <th scope="col" class="a-col-updated">Last changed</th>
                                 <th scope="col"><span class="sr-only">Actions</span></th>
@@ -135,7 +143,7 @@
                             @endforeach
                             <tr x-show="noMatches" x-cloak>
                                 <td colspan="4" class="a-no-results">
-                                    No veggies match “<span x-text="query"></span>”.
+                                    No {{ $nouns }} match “<span x-text="query"></span>”.
                                     <button type="button" class="a-link-btn" @click="query = ''">Clear search</button>
                                 </td>
                             </tr>

@@ -39,6 +39,62 @@ class StorefrontTest extends TestCase
             ->assertDontSee('How ordering works');
     }
 
+    public function test_vegetables_page_leaves_out_fruits(): void
+    {
+        $this->makeProduct('Fresh Carrots');
+        $this->makeProduct('Fuji Apples')->update(['category' => Product::CATEGORY_FRUIT]);
+
+        $this->get(route('products.index'))
+            ->assertOk()
+            ->assertSee('Fresh Carrots')
+            ->assertDontSee('Fuji Apples')
+            ->assertSee('href="'.route('products.fruits').'"', false);
+    }
+
+    public function test_fruits_page_shows_only_fruits(): void
+    {
+        $this->makeProduct('Fresh Carrots');
+        $this->makeProduct('Fuji Apples')->update(['category' => Product::CATEGORY_FRUIT]);
+
+        $this->get(route('products.fruits'))
+            ->assertOk()
+            ->assertSee('Fuji Apples')
+            ->assertSee('Add to cart')
+            ->assertDontSee('Fresh Carrots');
+    }
+
+    public function test_fruits_page_says_when_there_are_none_yet(): void
+    {
+        $this->makeProduct('Fresh Carrots');
+
+        $this->get(route('products.fruits'))
+            ->assertOk()
+            ->assertSee('No fruits yet')
+            ->assertDontSee('Fresh Carrots');
+    }
+
+    public function test_products_saved_without_a_category_stay_on_the_vegetables_page(): void
+    {
+        $carrots = $this->makeProduct('Fresh Carrots');
+
+        $this->assertSame(Product::CATEGORY_VEGETABLE, $carrots->refresh()->category);
+        $this->get(route('products.index'))->assertSee('Fresh Carrots');
+    }
+
+    public function test_fruits_and_vegetables_share_one_cart(): void
+    {
+        $carrots = $this->makeProduct('Fresh Carrots', 700, 110);
+        $apples = $this->makeProduct('Fuji Apples', 600, 55);
+        $apples->update(['category' => Product::CATEGORY_FRUIT]);
+
+        $this->postJson(route('cart.add'), ['product_id' => $carrots->id, 'items' => [['variant_index' => 0, 'qty' => 1]]]);
+        $this->postJson(route('cart.add'), ['product_id' => $apples->id, 'items' => [['variant_index' => 0, 'qty' => 1]]])
+            ->assertOk()
+            ->assertJsonPath('summary.total', 1300);
+
+        $this->get(route('products.fruits'))->assertSee('₱1,300');
+    }
+
     public function test_end_of_list_shows_cart_total_and_order_button(): void
     {
         $carrots = $this->makeProduct('Fresh Carrots', 700, 110);

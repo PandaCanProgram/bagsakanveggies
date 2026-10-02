@@ -277,6 +277,8 @@ button:disabled { cursor: not-allowed; }
 
 .primary-nav a:hover { background: var(--paper-2); color: var(--ink); }
 
+.primary-nav a[aria-current="page"] { background: var(--green-50); color: var(--green-800); font-weight: 600; }
+
 .cart-button {
   display: inline-flex;
   align-items: center;
@@ -527,6 +529,36 @@ button:disabled { cursor: not-allowed; }
 .section-title { font-size: clamp(1.75rem, 3vw, 2.25rem); }
 
 .section-lede { color: var(--ink-2); }
+
+/* Vegetables / Fruits switch at the top of the shop list (the only way to switch on phones) */
+.shelf-tabs {
+  display: inline-flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--paper);
+}
+
+.shelf-tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 22px;
+  border-radius: 999px;
+  color: var(--ink-2);
+  font-weight: 600;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.shelf-tab:hover { background: var(--paper-2); color: var(--ink); }
+
+.shelf-tab[aria-current="page"] {
+  background: var(--green-800);
+  color: #fff;
+  box-shadow: var(--shadow-1);
+}
 
 /* Product grid
    ========================================================================== */

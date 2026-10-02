@@ -40,7 +40,7 @@
             <span class="empty-state-icon"><x-icon name="basket" size="28" /></span>
             <p class="empty-state-title">Your cart is empty</p>
             <p class="empty-state-text">Choose a 10 kg bag or a few kilos from the list to get started.</p>
-            <a href="#products" class="btn btn-secondary" @click="$store.cart.hide()">Browse vegetables</a>
+            <a href="#products" class="btn btn-secondary" @click="$store.cart.hide()">Browse {{ strtolower($pageName ?? 'vegetables') }}</a>
         </div>
 
         @include('partials.cart-lines')

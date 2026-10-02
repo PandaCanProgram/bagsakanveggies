@@ -8,6 +8,7 @@ use App\Http\Controllers\ProductPhotoController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [ProductController::class, 'index'])->name('products.index');
+Route::get('/fruits', [ProductController::class, 'fruits'])->name('products.fruits');
 
 Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
 Route::post('/cart/update', [CartController::class, 'update'])->name('cart.update');

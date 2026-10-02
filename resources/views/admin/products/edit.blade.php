@@ -1,11 +1,16 @@
 @extends('layouts.admin')
 
+@php
+    $noun = \App\Models\Product::ADMIN_NAMES[$product->category];
+@endphp
+
 @section('title', 'Edit '.$product->name)
+@section('nav', $product->category)
 
 @section('content')
-    <a href="{{ route('admin.products.index') }}" class="a-link-muted a-back">
+    <a href="{{ \App\Models\Product::adminListUrl($product->category) }}" class="a-link-muted a-back">
         <x-admin.icon name="arrow-left" :size="16" />
-        All veggies
+        All {{ \Illuminate\Support\Str::plural($noun) }}
     </a>
 
     <div class="a-page-head">
@@ -28,7 +33,7 @@
 
     <section class="a-card a-card-pad a-danger-zone" aria-labelledby="delete-title">
         <div>
-            <h2 id="delete-title" class="a-section-title">Delete this veggie</h2>
+            <h2 id="delete-title" class="a-section-title">Delete this {{ $noun }}</h2>
             <p class="a-muted">Removes {{ $product->name }} from the store right away. Past orders keep their details.</p>
         </div>
         <form
@@ -40,7 +45,7 @@
             @method('DELETE')
             <button type="submit" class="a-btn a-btn-secondary a-btn-danger-text">
                 <x-admin.icon name="trash" :size="18" />
-                Delete veggie
+                Delete {{ $noun }}
             </button>
         </form>
     </section>

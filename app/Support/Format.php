@@ -16,10 +16,10 @@ class Format
     }
 
     /**
-     * Quantity without trailing zeros: 2, 0.5, 1.5.
+     * Quantity without trailing zeros: 2, 0.5, 1.5 (or 0.25 when asked for more decimals).
      */
-    public static function qty(float|int|string $qty): string
+    public static function qty(float|int|string $qty, int $decimals = 1): string
     {
-        return rtrim(rtrim(number_format((float) $qty, 1, '.', ''), '0'), '.');
+        return rtrim(rtrim(number_format((float) $qty, $decimals, '.', ''), '0'), '.');
     }
 }

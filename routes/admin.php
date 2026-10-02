@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AuthController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use Illuminate\Support\Facades\Route;
@@ -12,7 +13,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
     Route::middleware(EnsureUserIsAdmin::class)->group(function () {
         Route::post('/logout', [AuthController::class, 'destroy'])->name('logout');
 
-        Route::redirect('/', '/admin/products')->name('home');
+        Route::get('/', [DashboardController::class, 'index'])->name('home');
+        Route::get('/order-summary/export', [DashboardController::class, 'export'])->name('order-summary.export');
+        Route::get('/orders-per-person/export', [DashboardController::class, 'exportPerPerson'])->name('orders-per-person.export');
 
         Route::patch('/products/prices', [ProductController::class, 'updatePrices'])->name('products.prices.update');
         Route::resource('products', ProductController::class)->except(['show']);
