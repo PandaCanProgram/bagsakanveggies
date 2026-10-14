@@ -823,6 +823,8 @@ td.a-col-updated { padding-top: 36px !important; }
   white-space: nowrap;
 }
 
+.a-narrow { max-width: 560px; }
+
 .a-form-actions {
   display: flex;
   justify-content: flex-end;

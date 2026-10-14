@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\PasswordController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use Illuminate\Support\Facades\Route;
@@ -16,6 +17,9 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/', [DashboardController::class, 'index'])->name('home');
         Route::get('/order-summary/export', [DashboardController::class, 'export'])->name('order-summary.export');
         Route::get('/orders-per-person/export', [DashboardController::class, 'exportPerPerson'])->name('orders-per-person.export');
+
+        Route::get('/password', [PasswordController::class, 'edit'])->name('password.edit');
+        Route::put('/password', [PasswordController::class, 'update'])->middleware('throttle:5,1')->name('password.update');
 
         Route::get('/products/print', [ProductController::class, 'print'])->name('products.print');
         Route::patch('/products/prices', [ProductController::class, 'updatePrices'])->name('products.prices.update');

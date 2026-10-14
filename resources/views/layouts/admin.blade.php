@@ -24,7 +24,7 @@
 
     @auth
         @php
-            // Each page names its menu item with @section('nav', ...): dashboard, vegetable, fruit or print.
+            // Each page names its menu item with @section('nav', ...): dashboard, vegetable, fruit, print or password.
             $activeNav = trim(\Illuminate\Support\Facades\View::yieldContent('nav'));
         @endphp
 
@@ -70,6 +70,10 @@
                     <x-admin.icon name="store" />
                     <span>View store</span>
                     <span class="sr-only">(opens in a new tab)</span>
+                </a>
+                <a href="{{ route('admin.password.edit') }}" class="a-sidenav-link" @if ($activeNav === 'password') aria-current="page" @endif>
+                    <x-admin.icon name="key" />
+                    <span>Change password</span>
                 </a>
                 <form method="POST" action="{{ route('admin.logout') }}">
                     @csrf
