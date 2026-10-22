@@ -14,8 +14,9 @@
             </a>
         @else
             <nav class="primary-nav" aria-label="Main">
-                <a href="{{ route('products.index') }}" @if (request()->routeIs('products.index')) aria-current="page" @endif>Vegetables</a>
-                <a href="{{ route('products.fruits') }}" @if (request()->routeIs('products.fruits')) aria-current="page" @endif>Fruits</a>
+                @foreach (\App\Models\Product::CATEGORIES as $value => $label)
+                    <a href="{{ route(\App\Models\Product::STOREFRONT_ROUTES[$value]) }}" @if (request()->routeIs(\App\Models\Product::STOREFRONT_ROUTES[$value])) aria-current="page" @endif>{{ $label }}</a>
+                @endforeach
                 @if ($messengerPageUrl)
                     <a href="{{ $messengerPageUrl }}" target="_blank" rel="noopener">Message us</a>
                 @endif

@@ -1,18 +1,18 @@
 @extends('layouts.admin')
 
 @php
-    // This page lists one category: "veggie" or "fruit".
     $noun = \App\Models\Product::ADMIN_NAMES[$category];
     $nouns = \Illuminate\Support\Str::plural($noun);
+    $pageName = $category === \App\Models\Product::CATEGORY_VEGETABLE ? 'Veggies' : \App\Models\Product::CATEGORIES[$category];
 @endphp
 
-@section('title', ucfirst($nouns))
+@section('title', $pageName)
 @section('nav', $category)
 
 @section('content')
     <div class="a-page-head">
         <div>
-            <h1 class="a-page-title">{{ ucfirst($nouns) }}</h1>
+            <h1 class="a-page-title">{{ $pageName }}</h1>
             <p class="a-muted">
                 {{ $products->count() }} {{ \Illuminate\Support\Str::plural($noun, $products->count()) }} on the store
                 @if ($lastUpdatedAt)
@@ -28,7 +28,7 @@
 
     @if ($products->isEmpty())
         <div class="a-card a-empty">
-            <span class="a-empty-icon"><x-admin.icon :name="$category === \App\Models\Product::CATEGORY_FRUIT ? 'apple' : 'carrot'" :size="28" /></span>
+            <span class="a-empty-icon"><x-admin.icon :name="\App\Models\Product::CATEGORY_ICONS[$category]" :size="28" /></span>
             <h2 class="a-empty-title">No {{ $nouns }} yet</h2>
             <p class="a-muted">Add your first {{ $noun }} and it will show up on the store right away.</p>
             <a href="{{ route('admin.products.create', ['category' => $category]) }}" class="a-btn a-btn-primary">

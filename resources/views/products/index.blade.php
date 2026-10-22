@@ -1,11 +1,14 @@
 @php
-    $isFruits = $category === \App\Models\Product::CATEGORY_FRUIT;
     $pageName = \App\Models\Product::CATEGORIES[$category];
 @endphp
 
 @extends('layouts.app')
 
-@section('title', $isFruits ? 'Fresh fruits — Bagsakan Veggies Phils' : 'Bagsakan Veggies Phils — Fresh vegetables by the bag or by the kilo')
+@section('title', match ($category) {
+    \App\Models\Product::CATEGORY_VEGETABLE => 'Bagsakan Veggies Phils — Fresh vegetables by the bag or by the kilo',
+    \App\Models\Product::CATEGORY_FRUIT => 'Fresh fruits — Bagsakan Veggies Phils',
+    default => $pageName.' — Bagsakan Veggies Phils',
+})
 
 @section('body-class', 'has-cart-bar')
 
@@ -20,10 +23,10 @@
 @section('content')
     <section id="products" class="section" aria-labelledby="products-title">
         <div class="container">
-            {{-- Phones have no menu links, so switching between Vegetables and Fruits happens here. --}}
             <nav class="shelf-tabs" aria-label="Shop by category">
-                <a href="{{ route('products.index') }}" class="shelf-tab" @unless ($isFruits) aria-current="page" @endunless>Vegetables</a>
-                <a href="{{ route('products.fruits') }}" class="shelf-tab" @if ($isFruits) aria-current="page" @endif>Fruits</a>
+                @foreach (\App\Models\Product::CATEGORIES as $value => $label)
+                    <a href="{{ route(\App\Models\Product::STOREFRONT_ROUTES[$value]) }}" class="shelf-tab" @if ($category === $value) aria-current="page" @endif>{{ $label }}</a>
+                @endforeach
             </nav>
 
             <div class="section-head">
@@ -35,10 +38,10 @@
 
             @if ($products->isEmpty())
                 <div class="empty-state">
-                    <span class="empty-state-icon"><x-icon name="sprout" size="28" /></span>
+                    <span class="empty-state-icon"><x-icon :name="\App\Models\Product::CATEGORY_ICONS[$category]" size="28" /></span>
                     <p class="empty-state-title">No {{ strtolower($pageName) }} yet</p>
                     <p class="empty-state-text">Check back soon. New items show up here as soon as they’re added.</p>
-                    @if ($isFruits)
+                    @if ($category !== \App\Models\Product::CATEGORY_VEGETABLE)
                         <a href="{{ route('products.index') }}" class="btn btn-secondary">Browse vegetables</a>
                     @endif
                 </div>
@@ -54,7 +57,7 @@
                                 @if ($imageUrl = $product->imageUrl())
                                     <img class="product-photo" src="{{ $imageUrl }}" alt="{{ $product->name }}" width="640" height="480" loading="lazy" decoding="async">
                                 @else
-                                    <span class="product-photo-empty" aria-hidden="true"><x-icon name="sprout" size="32" /></span>
+                                    <span class="product-photo-empty" aria-hidden="true"><x-icon :name="\App\Models\Product::CATEGORY_ICONS[$category]" size="32" /></span>
                                 @endif
                             </div>
 

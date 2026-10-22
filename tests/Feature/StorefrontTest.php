@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class StorefrontTest extends TestCase
@@ -22,6 +23,49 @@ class StorefrontTest extends TestCase
             ],
             'sort_order' => $sortOrder,
         ]);
+    }
+
+    /**
+     * @return array<string, array{string, string, string, string}>
+     */
+    public static function categoryPages(): array
+    {
+        return [
+            'vegetables' => ['vegetable', 'Fresh Carrots', 'products.index', 'Vegetables'],
+            'fruits' => ['fruit', 'Fuji Apples', 'products.fruits', 'Fruits'],
+            'frozen foods' => ['frozen', 'Chicken Nuggets', 'products.frozen-foods', 'Frozen Foods'],
+            'miscellaneous items' => ['miscellaneous', 'Dishwashing Liquid', 'products.miscellaneous', 'Miscellaneous Items'],
+        ];
+    }
+
+    #[DataProvider('categoryPages')]
+    public function test_category_pages_show_only_their_products(string $category, string $name, string $routeName, string $label): void
+    {
+        foreach (self::categoryPages() as [$productCategory, $productName]) {
+            $this->makeProduct($productName)->update(['category' => $productCategory]);
+        }
+
+        $response = $this->get(route($routeName))->assertOk()->assertSee($name)
+            ->assertSee('id="products-title" class="section-title">'.$label, false);
+
+        foreach (self::categoryPages() as [$otherCategory, $otherName, $otherRoute, $otherLabel]) {
+            $response->assertSee('href="'.route($otherRoute).'"', false)->assertSeeText($otherLabel);
+
+            if ($otherCategory !== $category) {
+                $response->assertDontSee($otherName);
+            }
+        }
+
+        $this->assertMatchesRegularExpression(
+            '~class="shelf-tab"[^>]*aria-current="page"[^>]*>'.preg_quote($label, '~').'</a>~',
+            $response->getContent(),
+        );
+    }
+
+    #[DataProvider('categoryPages')]
+    public function test_empty_category_pages_show_the_correct_message(string $category, string $name, string $routeName, string $label): void
+    {
+        $this->get(route($routeName))->assertOk()->assertSee('No '.strtolower($label).' yet');
     }
 
     public function test_shop_page_shows_only_the_vegetables_and_cart_drawer(): void
@@ -81,7 +125,7 @@ class StorefrontTest extends TestCase
         $this->get(route('products.index'))->assertSee('Fresh Carrots');
     }
 
-    public function test_fruits_and_vegetables_share_one_cart(): void
+    public function test_all_categories_share_one_cart(): void
     {
         $carrots = $this->makeProduct('Fresh Carrots', 700, 110);
         $apples = $this->makeProduct('Fuji Apples', 600, 55);
@@ -92,7 +136,25 @@ class StorefrontTest extends TestCase
             ->assertOk()
             ->assertJsonPath('summary.total', 1300);
 
-        $this->get(route('products.fruits'))->assertSee('₱1,300');
+        $nuggets = $this->makeProduct('Chicken Nuggets', 200);
+        $nuggets->update(['category' => 'frozen']);
+        $soap = $this->makeProduct('Dishwashing Liquid', 100);
+        $soap->update(['category' => 'miscellaneous']);
+
+        foreach ([$nuggets, $soap] as $product) {
+            $this->postJson(route('cart.add'), [
+                'product_id' => $product->id,
+                'items' => [['variant_index' => 0, 'qty' => 1]],
+            ])->assertOk();
+        }
+
+        foreach (self::categoryPages() as [, , $routeName]) {
+            $this->get(route($routeName))->assertOk()->assertSee('₱1,600');
+        }
+
+        $this->get(route('checkout.index'))->assertOk()
+            ->assertSee('Fresh Carrots')->assertSee('Fuji Apples')
+            ->assertSee('Chicken Nuggets')->assertSee('Dishwashing Liquid');
     }
 
     public function test_end_of_list_shows_cart_total_and_order_button(): void

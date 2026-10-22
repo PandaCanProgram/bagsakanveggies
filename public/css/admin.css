@@ -1296,6 +1296,9 @@ td.a-col-updated { padding-top: 36px !important; }
   transition: color var(--duration-fast) ease, background-color var(--duration-fast) ease;
 }
 
+.a-category-tabs { flex-wrap: wrap; max-width: 100%; }
+.a-category-tabs .a-segmented-link { min-height: var(--control-height); white-space: normal; }
+
 .a-segmented-link:hover { color: var(--color-foreground); }
 
 .a-segmented-link[aria-current="page"] {
@@ -1464,6 +1467,8 @@ td.a-col-updated { padding-top: 36px !important; }
 
 /* Phones: 3 small items per row, like the store page */
 @media (max-width: 768px) {
+  .a-category-tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: 100%; }
+  .a-category-tabs .a-segmented-link { text-align: center; }
   .a-price-sheet { padding: var(--space-4) var(--space-3); }
   .a-price-sheet-title { font-size: 22px; }
   .a-price-sheet-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-5) 6px; }

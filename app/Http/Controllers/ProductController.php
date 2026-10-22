@@ -18,6 +18,16 @@ class ProductController extends Controller
         return $this->shelf(Product::CATEGORY_FRUIT, $cart);
     }
 
+    public function frozenFoods(CartService $cart): View
+    {
+        return $this->shelf(Product::CATEGORY_FROZEN, $cart);
+    }
+
+    public function miscellaneous(CartService $cart): View
+    {
+        return $this->shelf(Product::CATEGORY_MISCELLANEOUS, $cart);
+    }
+
     /**
      * The shop page for one category: its products, plus the cart shared by every page.
      */

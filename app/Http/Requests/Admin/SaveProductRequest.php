@@ -47,11 +47,11 @@ class SaveProductRequest extends FormRequest
     public function messages(): array
     {
         return [
-            'name.unique' => 'A veggie with this name already exists.',
+            'name.unique' => 'A product with this name already exists.',
             'category.required' => 'Choose which page it goes on.',
             'category.in' => 'Choose which page it goes on.',
             'variants.required' => 'Add at least one size and price.',
-            'variants.max' => 'A veggie can have up to '.self::MAX_VARIANTS.' sizes.',
+            'variants.max' => 'A product can have up to '.self::MAX_VARIANTS.' sizes.',
             'variants.*.label.required' => 'Enter a size, e.g. “1 kg”.',
             'variants.*.label.distinct' => 'Each size needs a different name.',
             'variants.*.price.required' => 'Enter a price.',

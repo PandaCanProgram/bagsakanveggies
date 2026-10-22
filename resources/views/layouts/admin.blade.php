@@ -24,7 +24,7 @@
 
     @auth
         @php
-            // Each page names its menu item with @section('nav', ...): dashboard, vegetable, fruit, print or password.
+            // Each page names its menu item with @section('nav', ...), using the category on product pages.
             $activeNav = trim(\Illuminate\Support\Facades\View::yieldContent('nav'));
         @endphp
 
@@ -51,14 +51,12 @@
                     <x-admin.icon name="layout-dashboard" />
                     <span>Dashboard</span>
                 </a>
-                <a href="{{ \App\Models\Product::adminListUrl(\App\Models\Product::CATEGORY_VEGETABLE) }}" class="a-sidenav-link" @if ($activeNav === \App\Models\Product::CATEGORY_VEGETABLE) aria-current="page" @endif>
-                    <x-admin.icon name="carrot" />
-                    <span>Veggies</span>
-                </a>
-                <a href="{{ \App\Models\Product::adminListUrl(\App\Models\Product::CATEGORY_FRUIT) }}" class="a-sidenav-link" @if ($activeNav === \App\Models\Product::CATEGORY_FRUIT) aria-current="page" @endif>
-                    <x-admin.icon name="apple" />
-                    <span>Fruits</span>
-                </a>
+                @foreach (\App\Models\Product::CATEGORIES as $value => $label)
+                    <a href="{{ \App\Models\Product::adminListUrl($value) }}" class="a-sidenav-link" @if ($activeNav === $value) aria-current="page" @endif>
+                        <x-admin.icon :name="\App\Models\Product::CATEGORY_ICONS[$value]" />
+                        <span>{{ $value === \App\Models\Product::CATEGORY_VEGETABLE ? 'Veggies' : $label }}</span>
+                    </a>
+                @endforeach
                 <a href="{{ route('admin.products.print') }}" class="a-sidenav-link" @if ($activeNav === 'print') aria-current="page" @endif>
                     <x-admin.icon name="printer" />
                     <span>Print price list</span>

@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [ProductController::class, 'index'])->name('products.index');
 Route::get('/fruits', [ProductController::class, 'fruits'])->name('products.fruits');
+Route::get('/frozen-foods', [ProductController::class, 'frozenFoods'])->name('products.frozen-foods');
+Route::get('/miscellaneous-items', [ProductController::class, 'miscellaneous'])->name('products.miscellaneous');
 
 Route::post('/cart/add', [CartController::class, 'add'])->name('cart.add');
 Route::post('/cart/update', [CartController::class, 'update'])->name('cart.update');

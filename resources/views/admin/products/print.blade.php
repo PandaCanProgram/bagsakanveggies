@@ -1,7 +1,6 @@
 @extends('layouts.admin')
 
 @php
-    $isFruits = $category === \App\Models\Product::CATEGORY_FRUIT;
     $noun = \App\Models\Product::ADMIN_NAMES[$category];
 @endphp
 
@@ -15,15 +14,13 @@
             <p class="a-muted">The store page with just each {{ $noun }}’s photo, name and prices, ready to print.</p>
         </div>
 
-        <nav class="a-segmented" aria-label="Price list to print">
-            <a href="{{ route('admin.products.print') }}" class="a-segmented-link" @unless ($isFruits) aria-current="page" @endunless>
-                <x-admin.icon name="carrot" :size="18" />
-                Veggies
-            </a>
-            <a href="{{ route('admin.products.print', ['category' => \App\Models\Product::CATEGORY_FRUIT]) }}" class="a-segmented-link" @if ($isFruits) aria-current="page" @endif>
-                <x-admin.icon name="apple" :size="18" />
-                Fruits
-            </a>
+        <nav class="a-segmented a-category-tabs" aria-label="Price list to print">
+            @foreach (\App\Models\Product::CATEGORIES as $value => $label)
+                <a href="{{ route('admin.products.print', $value === \App\Models\Product::CATEGORY_VEGETABLE ? [] : ['category' => $value]) }}" class="a-segmented-link" @if ($category === $value) aria-current="page" @endif>
+                    <x-admin.icon :name="\App\Models\Product::CATEGORY_ICONS[$value]" :size="18" />
+                    {{ $value === \App\Models\Product::CATEGORY_VEGETABLE ? 'Veggies' : $label }}
+                </a>
+            @endforeach
         </nav>
     </div>
 
@@ -59,7 +56,7 @@
 
             @if ($products->isEmpty())
                 <div class="a-empty">
-                    <span class="a-empty-icon"><x-admin.icon :name="$isFruits ? 'apple' : 'carrot'" :size="28" /></span>
+                    <span class="a-empty-icon"><x-admin.icon :name="\App\Models\Product::CATEGORY_ICONS[$category]" :size="28" /></span>
                     <h3 class="a-empty-title">No {{ \Illuminate\Support\Str::plural($noun) }} to print yet</h3>
                     <p class="a-muted">Add {{ \Illuminate\Support\Str::plural($noun) }} and they show up here, ready to print.</p>
                 </div>
@@ -71,7 +68,7 @@
                             @if ($imageUrl = $product->imageUrl())
                                 <img src="{{ $imageUrl }}" alt="" class="a-price-sheet-photo" width="640" height="480" decoding="async">
                             @else
-                                <span class="a-price-sheet-photo a-price-sheet-photo-empty"><x-admin.icon name="sprout" :size="32" /></span>
+                                <span class="a-price-sheet-photo a-price-sheet-photo-empty"><x-admin.icon :name="\App\Models\Product::CATEGORY_ICONS[$category]" :size="32" /></span>
                             @endif
 
                             <h3 class="a-price-sheet-name">{{ $product->name }}</h3>

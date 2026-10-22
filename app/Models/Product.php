@@ -114,6 +114,10 @@ class Product extends Model
 
     public const CATEGORY_FRUIT = 'fruit';
 
+    public const CATEGORY_FROZEN = 'frozen';
+
+    public const CATEGORY_MISCELLANEOUS = 'miscellaneous';
+
     /**
      * Store pages a product can be on, keyed by category, with the page name.
      *
@@ -122,6 +126,8 @@ class Product extends Model
     public const CATEGORIES = [
         self::CATEGORY_VEGETABLE => 'Vegetables',
         self::CATEGORY_FRUIT => 'Fruits',
+        self::CATEGORY_FROZEN => 'Frozen Foods',
+        self::CATEGORY_MISCELLANEOUS => 'Miscellaneous Items',
     ];
 
     /**
@@ -132,6 +138,32 @@ class Product extends Model
     public const ADMIN_NAMES = [
         self::CATEGORY_VEGETABLE => 'veggie',
         self::CATEGORY_FRUIT => 'fruit',
+        self::CATEGORY_FROZEN => 'frozen food item',
+        self::CATEGORY_MISCELLANEOUS => 'miscellaneous item',
+    ];
+
+    /**
+     * Named storefront routes for each category.
+     *
+     * @var array<string, string>
+     */
+    public const STOREFRONT_ROUTES = [
+        self::CATEGORY_VEGETABLE => 'products.index',
+        self::CATEGORY_FRUIT => 'products.fruits',
+        self::CATEGORY_FROZEN => 'products.frozen-foods',
+        self::CATEGORY_MISCELLANEOUS => 'products.miscellaneous',
+    ];
+
+    /**
+     * Icons shared by category navigation and empty states.
+     *
+     * @var array<string, string>
+     */
+    public const CATEGORY_ICONS = [
+        self::CATEGORY_VEGETABLE => 'carrot',
+        self::CATEGORY_FRUIT => 'apple',
+        self::CATEGORY_FROZEN => 'snowflake',
+        self::CATEGORY_MISCELLANEOUS => 'package',
     ];
 
     protected $fillable = ['name', 'note', 'category', 'variants', 'sort_order'];

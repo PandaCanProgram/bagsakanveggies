@@ -10,6 +10,7 @@ use Illuminate\Filesystem\FilesystemAdapter;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 class AdminProductTest extends TestCase
@@ -60,6 +61,138 @@ class AdminProductTest extends TestCase
             $name,
             base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='),
         );
+    }
+
+    /**
+     * @return array<string, array{string, string, string, string}>
+     */
+    public static function newCategories(): array
+    {
+        return [
+            'frozen foods' => ['frozen', 'Chicken Nuggets', 'products.frozen-foods', 'Frozen Foods'],
+            'miscellaneous items' => ['miscellaneous', 'Dishwashing Liquid', 'products.miscellaneous', 'Miscellaneous Items'],
+        ];
+    }
+
+    #[DataProvider('newCategories')]
+    public function test_admin_can_add_products_to_each_new_category(string $category, string $name, string $routeName, string $label): void
+    {
+        $this->actingAs($this->admin)
+            ->get(route('admin.products.create', ['category' => $category]))
+            ->assertOk()->assertSeeText($label)
+            ->assertSee('<option value="'.$category.'" selected>', false);
+
+        $this->post(route('admin.products.store'), [
+            'name' => $name,
+            'category' => $category,
+            'variants' => [['label' => '1 pack', 'price' => '150']],
+        ])->assertRedirect(route('admin.products.index', ['category' => $category]));
+
+        $this->assertDatabaseHas('products', ['name' => $name, 'category' => $category]);
+        $this->get(route($routeName))->assertOk()->assertSee($name)->assertSee('1 pack');
+        $this->get(route('products.index'))->assertDontSee($name);
+    }
+
+    #[DataProvider('newCategories')]
+    public function test_new_category_admin_lists_and_price_sheets_exclude_other_categories(string $category, string $name, string $routeName, string $label): void
+    {
+        $this->makeProduct('Fresh Carrots');
+        $this->makeFruit('Red Apples');
+
+        foreach (self::newCategories() as [$productCategory, $productName]) {
+            $this->makeProduct($productName)->update(['category' => $productCategory]);
+        }
+
+        $this->actingAs($this->admin);
+
+        foreach (['admin.products.index', 'admin.products.print'] as $route) {
+            $response = $this->get(route($route, ['category' => $category]))
+                ->assertOk()->assertSee($name)->assertSeeText($label)
+                ->assertDontSee('Fresh Carrots')->assertDontSee('Red Apples');
+
+            foreach (self::newCategories() as [$otherCategory, $otherName]) {
+                if ($otherCategory !== $category) {
+                    $response->assertDontSee($otherName);
+                }
+            }
+        }
+    }
+
+    #[DataProvider('newCategories')]
+    public function test_admin_can_move_a_product_to_each_new_category(string $category, string $name, string $routeName, string $label): void
+    {
+        $product = $this->makeProduct($name);
+
+        $this->actingAs($this->admin)->put(route('admin.products.update', $product), [
+            'name' => $name,
+            'category' => $category,
+            'variants' => $product->variants,
+        ])->assertRedirect(route('admin.products.index', ['category' => $category]));
+
+        $this->assertSame($category, $product->refresh()->category);
+        $this->get(route($routeName))->assertSee($name);
+        $this->get(route('products.index'))->assertDontSee($name);
+        $response = $this->get(route('admin.products.edit', $product))->assertOk()
+            ->assertSee('<option value="'.$category.'" selected>', false);
+
+        $this->assertMatchesRegularExpression(
+            '~<a href="'.preg_quote(route('admin.products.index', ['category' => $category]), '~').'"[^>]*aria-current="page"~',
+            $response->getContent(),
+        );
+        $this->assertSame(1, substr_count($response->getContent(), 'aria-current="page"'));
+    }
+
+    #[DataProvider('newCategories')]
+    public function test_bulk_price_changes_return_to_each_new_category(string $category, string $name, string $routeName, string $label): void
+    {
+        $product = $this->makeProduct($name);
+        $product->update(['category' => $category]);
+
+        $this->actingAs($this->admin)->patch(route('admin.products.prices.update'), [
+            'category' => $category,
+            'prices' => [$product->id => ['250', '75']],
+        ])->assertRedirect(route('admin.products.index', ['category' => $category]))->assertSessionHasNoErrors();
+
+        $this->assertSame(250, $product->refresh()->variants[0]['price']);
+        $this->get(route($routeName))->assertSee('₱250');
+    }
+
+    #[DataProvider('newCategories')]
+    public function test_new_categories_keep_their_own_product_order(string $category, string $name, string $routeName, string $label): void
+    {
+        $first = $this->makeProduct('First '.$name, sortOrder: 0);
+        $second = $this->makeProduct('Second '.$name, sortOrder: 1);
+        $first->update(['category' => $category]);
+        $second->update(['category' => $category]);
+        $carrots = $this->makeProduct('Fresh Carrots', sortOrder: 9);
+        $this->actingAs($this->admin);
+
+        $this->patchJson(route('admin.products.order.update'), [
+            'category' => $category,
+            'ids' => [$second->id, $first->id, $carrots->id],
+        ])->assertJsonValidationErrors('ids');
+
+        $this->patchJson(route('admin.products.order.update'), [
+            'category' => $category,
+            'ids' => [$second->id, $first->id],
+        ])->assertOk();
+
+        $this->get(route($routeName))->assertSeeInOrder([$second->name, $first->name]);
+        $this->get(route('admin.products.print', ['category' => $category]))->assertSeeInOrder([$second->name, $first->name]);
+        $this->assertSame(9, $carrots->refresh()->sort_order);
+    }
+
+    #[DataProvider('newCategories')]
+    public function test_deleting_a_product_returns_to_its_new_category(string $category, string $name, string $routeName, string $label): void
+    {
+        $product = $this->makeProduct($name);
+        $product->update(['category' => $category]);
+
+        $this->actingAs($this->admin)->delete(route('admin.products.destroy', $product))
+            ->assertRedirect(route('admin.products.index', ['category' => $category]));
+
+        $this->assertModelMissing($product);
+        $this->get(route($routeName))->assertSee('No '.strtolower($label).' yet');
     }
 
     public function test_admin_sees_every_veggie_with_its_prices(): void
@@ -227,7 +360,7 @@ class AdminProductTest extends TestCase
         $this->assertSame(Product::CATEGORY_FRUIT, Product::where('name', 'Fuji Apples')->value('category'));
     }
 
-    public function test_store_page_must_be_vegetables_or_fruits(): void
+    public function test_store_page_must_be_a_supported_category(): void
     {
         $this->actingAs($this->admin)
             ->post(route('admin.products.store'), [
