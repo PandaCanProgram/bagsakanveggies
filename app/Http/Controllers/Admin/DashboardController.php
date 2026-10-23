@@ -10,6 +10,7 @@ use App\Support\SimpleXlsx;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -59,14 +60,29 @@ class DashboardController extends Controller
     public function exportPerPerson(Request $request): StreamedResponse
     {
         $summary = PerPersonOrderSummary::for($this->requestedDay($request));
-        $people = count($summary->people);
+        $personIds = array_map(fn (array $person): int => $person['orders'][0]['id'], $summary->people);
+        $selection = $request->validate([
+            'selection' => ['sometimes', Rule::in(['1'])],
+            'people' => ['required_if:selection,1', 'array', 'min:1'],
+            'people.*' => ['required', 'integer', 'distinct', Rule::in($personIds)],
+        ], [
+            'people.required_if' => 'Select at least one person to download.',
+            'people.min' => 'Select at least one person to download.',
+            'people.*.in' => 'A selected person is not on this day. Reload the dashboard and try again.',
+        ]);
+        $selectedIds = isset($selection['people']) ? array_map('intval', $selection['people']) : $personIds;
+        $people = array_values(array_filter($summary->people, fn (array $person): bool => in_array($person['orders'][0]['id'], $selectedIds, true)));
+        $personCount = count($people);
+        $orderCount = array_sum(array_map(fn (array $person): int => count($person['orders']), $people));
+        $total = array_sum(array_column($people, 'total'));
+        $totalLabel = $personCount < count($summary->people) ? 'TOTAL FOR SELECTED PEOPLE' : 'TOTAL FOR THE DAY';
 
         $sheet = (new SimpleXlsx('Orders per person', [36, 16, 8, 14]))
             ->addRow(['ORDERS PER PERSON'], 'title')
             ->addRow([$summary->day->format('F j, Y')])
-            ->addRow(['Orders received: '.$summary->orderCount.' from '.$people.' '.Str::plural('person', $people)]);
+            ->addRow(['Orders received: '.$orderCount.' from '.$personCount.' '.Str::plural('person', $personCount)]);
 
-        foreach ($summary->people as $number => $person) {
+        foreach ($people as $number => $person) {
             $sheet->addRow()
                 ->addRow([($number + 1).'. '.$person['name']], 'bold')
                 ->addRow(['CP or Viber: '.$person['contact_number']])
@@ -86,7 +102,7 @@ class DashboardController extends Controller
         }
 
         $sheet->addRow()
-            ->addRow(['TOTAL FOR THE DAY', '', '', Format::peso($summary->total)], ['total', 'total', 'total', 'total-right']);
+            ->addRow([$totalLabel, '', '', Format::peso($total)], ['total', 'total', 'total', 'total-right']);
 
         return $this->download($sheet, 'orders-per-person-'.$summary->day->toDateString().'.xlsx');
     }

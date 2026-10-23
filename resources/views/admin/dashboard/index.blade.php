@@ -64,10 +64,14 @@
                         <x-admin.icon name="printer" :size="18" />
                         Print
                     </button>
-                    <a href="{{ route($perPerson ? 'admin.orders-per-person.export' : 'admin.order-summary.export', ['date' => $date]) }}" class="a-btn a-btn-primary">
-                        <x-admin.icon name="download" :size="18" />
-                        Download Excel
-                    </a>
+                    @if ($perPerson)
+                        @include('admin.dashboard.partials.export-people')
+                    @else
+                        <a href="{{ route('admin.order-summary.export', ['date' => $date]) }}" class="a-btn a-btn-primary">
+                            <x-admin.icon name="download" :size="18" />
+                            Download Excel
+                        </a>
+                    @endif
                 </div>
             @endif
 

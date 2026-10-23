@@ -358,6 +358,105 @@ class AdminDashboardTest extends TestCase
             ->assertDontSee('<img src=x', false);
     }
 
+    public function test_per_person_download_opens_a_checklist_for_only_the_displayed_day(): void
+    {
+        $product = $this->makeProduct('Sayote');
+        $juan = $this->placeOrder('2026-10-01 08:00', [[$product, '1 kg', 1]]);
+        $repeat = $this->placeOrder('2026-10-01 09:00', [[$product, '1 kg', 1]], ['contact_number' => '0917-123-4567']);
+        $maria = $this->placeOrder('2026-10-01 10:00', [[$product, '1 kg', 1]], [
+            'full_name' => 'Maria Santos', 'contact_number' => '09281112222',
+        ]);
+        $tomorrow = $this->placeOrder('2026-10-02 08:00', [[$product, '1 kg', 1]], [
+            'full_name' => 'Next Day Customer', 'contact_number' => '09991112222',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.home', ['date' => '2026-10-01', 'view' => 'people']))
+            ->assertOk()->assertSee('id="person-export-dialog"', false)
+            ->assertSeeText('Choose people to export')->assertSeeText('Select all')
+            ->assertSee('name="date" value="2026-10-01"', false)
+            ->assertSee('name="people[]" value="'.$juan->id.'"', false)
+            ->assertSee('name="people[]" value="'.$maria->id.'"', false)
+            ->assertDontSee('name="people[]" value="'.$repeat->id.'"', false)
+            ->assertDontSee('name="people[]" value="'.$tomorrow->id.'"', false)
+            ->assertDontSeeText('Next Day Customer');
+
+        $this->assertSame(2, substr_count($response->getContent(), 'name="people[]"'));
+        $this->get(route('admin.home', ['date' => '2026-10-01']))
+            ->assertDontSee('id="person-export-dialog"', false)
+            ->assertSee('href="'.e(route('admin.order-summary.export', ['date' => '2026-10-01'])).'"', false);
+    }
+
+    #[RequiresPhpExtension('zip')]
+    public function test_selected_person_export_includes_all_their_orders_and_only_their_totals(): void
+    {
+        $product = $this->makeProduct('Sayote');
+        $juan = $this->placeOrder('2026-10-01 08:00', [[$product, '1 kg', 1]]);
+        $juan->update(['delivery_fee' => 50, 'total' => 150]);
+        $this->placeOrder('2026-10-01 09:00', [[$product, '1 kg', 2]], ['contact_number' => '0917-123-4567']);
+        $this->placeOrder('2026-10-01 10:00', [[$product, '1 kg', 4]], [
+            'full_name' => 'Juan Dela Cruz', 'contact_number' => '09281112222', 'delivery_address' => 'Other Address',
+        ]);
+        $this->placeOrder('2026-10-02 08:00', [[$product, '1 kg', 10]]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.orders-per-person.export', [
+            'date' => '2026-10-01', 'selection' => 1, 'people' => [$juan->id],
+        ]))->assertDownload('orders-per-person-2026-10-01.xlsx');
+
+        $rows = $this->sheetRows($response->streamedContent());
+        $this->assertSame(['Orders received: 2 from 1 person'], $rows[2]);
+        $this->assertContains(['1. Juan Dela Cruz'], $rows);
+        $this->assertContains(['🍐 Sayote', '1 kg', '3', '₱300'], $rows);
+        $this->assertContains(['Delivery fee', '', '', '₱50'], $rows);
+        $this->assertSame(['TOTAL FOR SELECTED PEOPLE', '', '', '₱350'], end($rows));
+        $this->assertStringNotContainsString('09281112222', json_encode($rows));
+        $this->assertStringNotContainsString('Other Address', json_encode($rows));
+    }
+
+    #[RequiresPhpExtension('zip')]
+    public function test_selecting_multiple_people_preserves_their_order_and_recalculates_counts(): void
+    {
+        $product = $this->makeProduct('Sayote');
+        $juan = $this->placeOrder('2026-10-01 08:00', [[$product, '1 kg', 1]]);
+        $maria = $this->placeOrder('2026-10-01 09:00', [[$product, '1 kg', 2]], [
+            'full_name' => 'Maria Santos', 'contact_number' => '09281112222',
+        ]);
+        $this->placeOrder('2026-10-01 10:00', [[$product, '1 kg', 4]], [
+            'full_name' => 'Pedro Santos', 'contact_number' => '09991112222',
+        ]);
+
+        $response = $this->actingAs($this->admin)->get(route('admin.orders-per-person.export', [
+            'date' => '2026-10-01', 'selection' => 1, 'people' => [$maria->id, $juan->id],
+        ]))->assertOk();
+
+        $rows = $this->sheetRows($response->streamedContent());
+        $this->assertSame(['Orders received: 2 from 2 people'], $rows[2]);
+        $this->assertSame(['1. Juan Dela Cruz'], $rows[4]);
+        $this->assertContains(['2. Maria Santos'], $rows);
+        $this->assertSame(['TOTAL FOR SELECTED PEOPLE', '', '', '₱300'], end($rows));
+        $this->assertStringNotContainsString('Pedro Santos', json_encode($rows));
+    }
+
+    public function test_person_selection_rejects_empty_invalid_and_other_day_choices(): void
+    {
+        $product = $this->makeProduct('Sayote');
+        $juan = $this->placeOrder('2026-10-01 08:00', [[$product, '1 kg', 1]]);
+        $tomorrow = $this->placeOrder('2026-10-02 08:00', [[$product, '1 kg', 1]]);
+        $this->actingAs($this->admin);
+
+        foreach ([
+            ['selection' => 1],
+            ['selection' => 1, 'people' => []],
+            ['selection' => 1, 'people' => [$tomorrow->id]],
+            ['selection' => 1, 'people' => [$juan->id, $juan->id]],
+            ['selection' => 1, 'people' => 'all'],
+            ['selection' => 1, 'people' => ['invalid']],
+        ] as $query) {
+            $this->getJson(route('admin.orders-per-person.export', ['date' => '2026-10-01', ...$query]))
+                ->assertUnprocessable();
+        }
+    }
+
     #[RequiresPhpExtension('zip')]
     public function test_orders_per_person_download_as_an_excel_sheet_laid_out_like_the_dashboard(): void
     {

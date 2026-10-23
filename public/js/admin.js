@@ -238,6 +238,19 @@ async function makePriceSheetPdf(sheets, title) {
 }
 
 document.addEventListener('alpine:init', () => {
+    Alpine.data('personExport', (ids) => ({
+        ids,
+        selected: [...ids],
+
+        get allSelected() {
+            return this.selected.length === this.ids.length;
+        },
+
+        toggleAll() {
+            this.selected = this.allSelected ? [] : [...this.ids];
+        },
+    }));
+
     // Price list: tracks which prices differ from what's saved and lets the admin save or discard them together.
     Alpine.data('priceEditor', () => ({
         query: '',
