@@ -40,20 +40,26 @@ class ProductController extends Controller
     }
 
     /**
-     * The Veggies or Fruits page as a sheet to print or download as a PDF (?category=fruit):
-     * each product's photo, name and prices.
+     * A category or every category as sheets to print or download as a PDF.
      */
     public function print(Request $request): View
     {
-        $category = $this->requestedCategory($request);
-        $pageName = Product::CATEGORIES[$category];
+        $allCategories = $request->query('category') === 'all';
+        $category = $allCategories ? 'all' : $this->requestedCategory($request);
+        $pageName = $allCategories ? 'All categories' : Product::CATEGORIES[$category];
+        $products = $allCategories
+            ? Product::whereIn('category', array_keys(Product::CATEGORIES))->orderBy('sort_order')->orderBy('id')->get()
+            : $this->productsIn($category);
+        $date = DailyOrderSummary::today()->toDateString();
 
         return view('admin.products.print', [
             'category' => $category,
-            'products' => $this->productsIn($category),
+            'products' => $products,
+            'printCategories' => $allCategories ? Product::CATEGORIES : [$category => $pageName],
+            'hasProducts' => $products->isNotEmpty() || Product::whereIn('category', array_keys(Product::CATEGORIES))->exists(),
             'pdfTitle' => "Bagsakan Veggies Phils — {$pageName}",
-            // Dated in Manila, like the dashboard: price-list-vegetables-2026-10-02.pdf
-            'pdfFilename' => 'price-list-'.Str::slug($pageName).'-'.DailyOrderSummary::today()->toDateString().'.pdf',
+            'pdfFilename' => 'price-list-'.Str::slug($pageName).'-'.$date.'.pdf',
+            'allPdfFilename' => 'price-list-all-categories-'.$date.'.pdf',
         ]);
     }
 

@@ -189,11 +189,13 @@ function paginatePriceSheet(sheet, stage) {
 }
 
 // The price sheet as a PDF on Letter paper, each page drawn from a copy of the sheet with html2canvas.
-async function makePriceSheetPdf(sheet, title) {
+async function makePriceSheetPdf(sheets, title) {
     await Promise.all(PDF_LIBRARIES.map(loadScript));
 
     // Wait for every photo so none is missing from the PDF (a broken one is just left blank).
-    await Promise.all([...sheet.querySelectorAll('img')].map((photo) => photo.decode().catch(() => {})));
+    await Promise.all(sheets.flatMap((sheet) => [...sheet.querySelectorAll('img')])
+        .map((photo) => photo.decode().catch(() => {})));
+    await document.fonts?.ready;
 
     // Copies are laid out out of sight, then shown only in html2canvas's own copy of the page.
     const stage = document.createElement('div');
@@ -204,20 +206,29 @@ async function makePriceSheetPdf(sheet, title) {
     try {
         const pdf = new window.jspdf.jsPDF({ unit: 'pt', format: 'letter' });
         const contentWidth = PDF_PAPER.width - 2 * PDF_PAPER.margin;
+        let pageCount = 0;
 
         pdf.setProperties({ title });
 
-        for (const [index, page] of paginatePriceSheet(sheet, stage).entries()) {
-            const canvas = await window.html2canvas(page, {
-                scale: 2,
-                backgroundColor: '#ffffff',
-                logging: false,
-                onclone: (pageCopy) => pageCopy.querySelector('.a-pdf-stage').classList.add('is-drawing'),
-            });
+        for (const sheet of sheets) {
+            for (const page of paginatePriceSheet(sheet, stage)) {
+                const canvas = await window.html2canvas(page, {
+                    scale: 2,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    onclone: (pageCopy) => pageCopy.querySelector('.a-pdf-stage').classList.add('is-drawing'),
+                });
 
-            if (index > 0) pdf.addPage();
+                if (pageCount > 0) pdf.addPage();
 
-            pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', PDF_PAPER.margin, PDF_PAPER.margin, contentWidth, canvas.height * contentWidth / canvas.width);
+                pdf.addImage(canvas.toDataURL('image/jpeg', 0.92), 'JPEG', PDF_PAPER.margin, PDF_PAPER.margin, contentWidth, canvas.height * contentWidth / canvas.width);
+                pageCount++;
+                page.remove();
+            }
+        }
+
+        if (pageCount === 0) {
+            throw new Error('No products to download.');
         }
 
         return pdf;
@@ -536,24 +547,50 @@ document.addEventListener('alpine:init', () => {
     });
 
     // Print price list: "Download PDF" saves the sheet as a PDF that looks like the printed one.
-    Alpine.data('priceSheetPdf', ({ filename, title }) => ({
+    Alpine.data('priceSheetPdf', ({ filename, title, allUrl, allFilename, allTitle }) => ({
         busy: false,
+        downloadingAll: false,
         failed: false,
 
-        async download() {
+        async download(allCategories = false) {
             if (this.busy) return;
 
             this.busy = true;
+            this.downloadingAll = allCategories;
             this.failed = false;
+            let source;
 
             try {
-                const pdf = await makePriceSheetPdf(this.$refs.sheet, title);
-                pdf.save(filename);
+                let sheets = [...this.$refs.sheets.querySelectorAll('[data-price-sheet]')];
+
+                if (allCategories) {
+                    const response = await fetch(allUrl, {
+                        credentials: 'same-origin',
+                        headers: { Accept: 'text/html' },
+                    });
+
+                    if (!response.ok || response.redirected) {
+                        throw new Error('Could not load all categories. Reload the page and try again.');
+                    }
+
+                    const page = new DOMParser().parseFromString(await response.text(), 'text/html');
+                    sheets = [...page.querySelectorAll('[data-price-sheet]')];
+                    source = document.createElement('div');
+                    source.hidden = true;
+                    source.setAttribute('aria-hidden', 'true');
+                    source.append(...sheets);
+                    document.body.append(source);
+                }
+
+                const pdf = await makePriceSheetPdf(sheets, allCategories ? allTitle : title);
+                pdf.save(allCategories ? allFilename : filename);
             } catch (error) {
                 console.error(error);
                 this.failed = true;
             } finally {
+                source?.remove();
                 this.busy = false;
+                this.downloadingAll = false;
             }
         },
     }));

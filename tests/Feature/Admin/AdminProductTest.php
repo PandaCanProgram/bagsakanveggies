@@ -424,6 +424,60 @@ class AdminProductTest extends TestCase
             ->assertDontSee('Fresh Carrots');
     }
 
+    public function test_all_price_lists_include_every_category_in_store_order(): void
+    {
+        $this->makeProduct('Later Carrots', sortOrder: 2);
+        $this->makeProduct('First Carrots', sortOrder: 0);
+        $this->makeFruit('Red Apples');
+        $this->makeProduct('Chicken Nuggets')->update(['category' => Product::CATEGORY_FROZEN]);
+        $this->makeProduct('Dishwashing Liquid')->update(['category' => Product::CATEGORY_MISCELLANEOUS]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.products.print', ['category' => 'all']))
+            ->assertOk()
+            ->assertSeeInOrder(['First Carrots', 'Later Carrots', 'Red Apples', 'Chicken Nuggets', 'Dishwashing Liquid'])
+            ->assertDontSee('loading="lazy"', false);
+
+        $this->assertSame(4, substr_count($response->getContent(), 'data-price-sheet'));
+    }
+
+    public function test_all_price_lists_skip_empty_categories(): void
+    {
+        $this->makeProduct('Chicken Nuggets')->update(['category' => Product::CATEGORY_FROZEN]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.products.print', ['category' => 'all']))
+            ->assertOk()->assertSee('Chicken Nuggets');
+
+        $this->assertSame(1, substr_count($response->getContent(), 'data-price-sheet'));
+        $response->assertSee('data-category="frozen"', false);
+    }
+
+    public function test_download_all_is_available_from_an_empty_category_when_other_products_exist(): void
+    {
+        $this->makeFruit('Red Apples');
+
+        $this->actingAs($this->admin)->get(route('admin.products.print'))
+            ->assertOk()->assertSeeText('Download all categories')
+            ->assertSee('category=all', false)
+            ->assertDontSee('Red Apples');
+    }
+
+    public function test_all_price_lists_show_an_empty_state_when_the_store_is_empty(): void
+    {
+        $this->actingAs($this->admin)->get(route('admin.products.print', ['category' => 'all']))
+            ->assertOk()->assertSee('No products to print yet')
+            ->assertDontSee('data-price-sheet', false)
+            ->assertDontSeeText('Download all categories');
+    }
+
+    public function test_non_admins_cannot_download_all_price_lists(): void
+    {
+        $url = route('admin.products.print', ['category' => 'all']);
+        $this->get($url)->assertRedirect(route('admin.login'));
+        $this->actingAs(User::factory()->create())->get($url)->assertForbidden();
+    }
+
     public function test_price_list_pdf_is_named_after_the_page_and_todays_date_in_manila(): void
     {
         // 7:30 AM on October 3 in Manila is still October 2 in UTC.
@@ -438,6 +492,9 @@ class AdminProductTest extends TestCase
 
         $this->get(route('admin.products.print', ['category' => 'fruit']))
             ->assertSee('price-list-fruits-2026-10-03.pdf');
+
+        $this->get(route('admin.products.print', ['category' => 'all']))
+            ->assertSee('price-list-all-categories-2026-10-03.pdf');
     }
 
     public function test_admin_can_drag_veggies_into_a_new_order_that_the_store_follows(): void

@@ -1401,6 +1401,8 @@ td.a-col-updated { padding-top: 36px !important; }
    Plain white like the store (public/css/app.css), so the screen shows what comes out of the printer. */
 .a-price-sheet-card { overflow: hidden; }
 
+.a-price-sheets > .a-price-sheet + .a-price-sheet { border-top: 1px solid var(--color-border); }
+
 .a-price-sheet {
   padding: var(--space-6);
   background: #ffffff;
@@ -1540,6 +1542,7 @@ td.a-col-updated { padding-top: 36px !important; }
   .a-person-details a { text-decoration: none; }
   /* Price list: 3 items per row, like the client's printed price sheet; an item never splits across pages */
   .a-price-sheet-card { overflow: visible; }
+  .a-price-sheets > .a-price-sheet + .a-price-sheet { break-before: page; border-top: 0; }
   .a-price-sheet { padding: 0; }
   .a-price-sheet-title { font-size: 26px; }
   .a-price-sheet-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8mm 6mm; margin-top: 6mm; }
