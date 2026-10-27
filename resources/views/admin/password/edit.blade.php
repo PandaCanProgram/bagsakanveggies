@@ -11,7 +11,7 @@
         </div>
     </div>
 
-    <form method="POST" action="{{ route('admin.password.update') }}" class="a-card a-card-pad a-stack a-narrow"
+    <form method="POST" action="{{ route(auth()->user()->is_admin ? 'admin.password.update' : 'purchaser.password.update') }}" class="a-card a-card-pad a-stack a-narrow"
           x-data="{ showPassword: false, submitting: false }" @submit="submitting = true" novalidate>
         @csrf
         @method('PUT')

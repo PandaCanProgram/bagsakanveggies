@@ -8,11 +8,11 @@
         <div class="a-auth-card">
             <div class="a-auth-head">
                 <span class="a-brand-mark a-brand-mark-lg"><img src="{{ asset('images/logo-mark.png') }}" alt="" width="256" height="256"></span>
-                <h1 class="a-auth-title">Admin sign in</h1>
-                <p class="a-muted">Manage veggies and prices for Bagsakan Veggies Phils.</p>
+                <h1 class="a-auth-title">{{ $isPurchaserLogin ? 'Purchaser sign in' : 'Staff sign in' }}</h1>
+                <p class="a-muted">Sign in to your admin or purchaser panel.</p>
             </div>
 
-            <form method="POST" action="{{ route('admin.login.store') }}" class="a-stack" x-data="{ showPassword: false, submitting: false }" @submit="submitting = true" novalidate>
+            <form method="POST" action="{{ route($isPurchaserLogin ? 'purchaser.login.store' : 'admin.login.store') }}" class="a-stack" x-data="{ showPassword: false, submitting: false }" @submit="submitting = true" novalidate>
                 @csrf
 
                 @error('email')
@@ -57,6 +57,9 @@
             </form>
         </div>
 
+        <a href="{{ route($isPurchaserLogin ? 'admin.login' : 'purchaser.login') }}" class="a-link-muted">
+            {{ $isPurchaserLogin ? 'Open admin sign in' : 'Open purchaser sign in' }}
+        </a>
         <a href="{{ route('products.index') }}" class="a-link-muted">
             <x-admin.icon name="arrow-left" :size="16" />
             Back to the store

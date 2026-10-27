@@ -27,8 +27,9 @@ class PasswordController extends Controller
 
         $request->user()->update(['password' => $validated['password']]);
 
-        $request->session()->regenerate();
+        $request->session()->migrate(true);
 
-        return redirect()->route('admin.password.edit')->with('status', 'Your password has been changed.');
+        return redirect()->route($request->routeIs('purchaser.*') ? 'purchaser.password.edit' : 'admin.password.edit')
+            ->with('status', 'Your password has been changed.');
     }
 }

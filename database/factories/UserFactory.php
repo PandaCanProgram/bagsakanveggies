@@ -42,4 +42,9 @@ class UserFactory extends Factory
             'email_verified_at' => null,
         ]);
     }
+
+    public function purchaser(): static
+    {
+        return $this->state(fn (array $attributes): array => ['is_admin' => false, 'is_purchaser' => true]);
+    }
 }

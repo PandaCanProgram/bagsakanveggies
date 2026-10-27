@@ -15,14 +15,17 @@
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 </head>
 {{-- On phones and tablets the side menu slides in from the ☰ button; on wider screens it stays open. --}}
-<body class="@auth has-sidebar @endauth @yield('body-class')"
+@php
+    $showSidebar = auth()->check() && ! request()->routeIs('admin.login', 'purchaser.login');
+@endphp
+<body class="{{ $showSidebar ? 'has-sidebar' : '' }} @yield('body-class')"
       x-data="{ menuOpen: false }"
       x-init="$watch('menuOpen', open => $nextTick(() => (open ? $refs.menuClose : $refs.menuButton)?.focus()))"
       :class="{ 'is-menu-open': menuOpen }"
       @keydown.escape.window="menuOpen = false">
     <a href="#main" class="skip-link">Skip to content</a>
 
-    @auth
+    @if ($showSidebar)
         @php
             // Each page names its menu item with @section('nav', ...), using the category on product pages.
             $activeNav = trim(\Illuminate\Support\Facades\View::yieldContent('nav'));
@@ -38,7 +41,7 @@
 
         <div class="a-sidebar-backdrop" x-show="menuOpen" x-cloak x-transition.opacity @click="menuOpen = false"></div>
 
-        <aside id="admin-menu" class="a-sidebar" :class="{ 'is-open': menuOpen }" aria-label="Admin menu">
+        <aside id="admin-menu" class="a-sidebar" :class="{ 'is-open': menuOpen }" aria-label="Staff menu">
             <div class="a-sidebar-head">
                 <x-admin.brand />
                 <button type="button" class="a-icon-btn a-sidebar-close" x-ref="menuClose" @click="menuOpen = false" aria-label="Close menu">
@@ -46,7 +49,8 @@
                 </button>
             </div>
 
-            <nav class="a-sidenav" aria-label="Admin">
+            <nav class="a-sidenav" aria-label="Staff navigation">
+                @if (auth()->user()->is_admin)
                 <a href="{{ route('admin.home') }}" class="a-sidenav-link" @if ($activeNav === 'dashboard') aria-current="page" @endif>
                     <x-admin.icon name="layout-dashboard" />
                     <span>Dashboard</span>
@@ -61,6 +65,11 @@
                     <x-admin.icon name="printer" />
                     <span>Print price list</span>
                 </a>
+                @endif
+                <a href="{{ route(auth()->user()->is_admin ? 'admin.purchase-orders.index' : 'purchaser.home') }}" class="a-sidenav-link" @if ($activeNav === 'purchase-orders') aria-current="page" @endif>
+                    <x-admin.icon name="clipboard-list" />
+                    <span>Purchase orders</span>
+                </a>
             </nav>
 
             <div class="a-sidebar-foot">
@@ -69,11 +78,11 @@
                     <span>View store</span>
                     <span class="sr-only">(opens in a new tab)</span>
                 </a>
-                <a href="{{ route('admin.password.edit') }}" class="a-sidenav-link" @if ($activeNav === 'password') aria-current="page" @endif>
+                <a href="{{ route(auth()->user()->is_admin ? 'admin.password.edit' : 'purchaser.password.edit') }}" class="a-sidenav-link" @if ($activeNav === 'password') aria-current="page" @endif>
                     <x-admin.icon name="key" />
                     <span>Change password</span>
                 </a>
-                <form method="POST" action="{{ route('admin.logout') }}">
+                <form method="POST" action="{{ route(auth()->user()->is_admin ? 'admin.logout' : 'purchaser.logout') }}">
                     @csrf
                     <button type="submit" class="a-sidenav-link" title="Sign out {{ auth()->user()->name }}">
                         <x-admin.icon name="log-out" />
@@ -82,7 +91,7 @@
                 </form>
             </div>
         </aside>
-    @endauth
+    @endif
 
     <main id="main" class="a-main" tabindex="-1">
         @if (session('status'))

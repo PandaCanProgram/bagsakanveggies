@@ -1,5 +1,27 @@
 // Admin page behaviour (Alpine components). Loaded before Alpine so the components exist when it starts.
 
+function purchaseLineCents(quantity, unitPrice) {
+    const qty = String(quantity ?? '');
+    const price = String(unitPrice ?? '');
+    if (!/^\d+(\.\d{1,3})?$/.test(qty) || !/^\d+(\.\d{1,2})?$/.test(price)) {
+        return null;
+    }
+    if (Number(qty) <= 0 || Number(qty) > 99999.999 || Number(price) > 999999.99) {
+        return null;
+    }
+
+    const [qtyWhole, qtyFraction = ''] = qty.split('.');
+    const [priceWhole, priceFraction = ''] = price.split('.');
+    const thousandths = BigInt(qtyWhole) * 1000n + BigInt(qtyFraction.padEnd(3, '0'));
+    const cents = BigInt(priceWhole) * 100n + BigInt(priceFraction.padEnd(2, '0'));
+    return Number((thousandths * cents + 500n) / 1000n);
+}
+
+function purchaseMoney(cents) {
+    const absolute = Math.abs(cents);
+    return (cents < 0 ? '-' : '') + '\u20b1' + Math.floor(absolute / 100).toLocaleString('en-PH') + '.' + String(absolute % 100).padStart(2, '0');
+}
+
 function warnBeforeLeaving(component) {
     window.addEventListener('beforeunload', (event) => {
         if (component.hasUnsavedChanges() && !component.submitting) {
@@ -238,6 +260,58 @@ async function makePriceSheetPdf(sheets, title) {
 }
 
 document.addEventListener('alpine:init', () => {
+    Alpine.data('purchaseOrderForm', (state) => ({
+        items: state.items.map((item, key) => ({ ...item, key })),
+        nextKey: state.items.length,
+        errors: state.errors || {},
+        submitting: false,
+        money: purchaseMoney,
+        lineCents(item) {
+            return purchaseLineCents(item.quantity, item.estimated_unit_price) ?? 0;
+        },
+        totalCents() {
+            return this.items.reduce((total, item) => total + this.lineCents(item), 0);
+        },
+        error(index, field) {
+            return this.errors[`items.${index}.${field}`]?.[0] || '';
+        },
+        add() {
+            if (this.items.length < 100) {
+                this.items.push({ key: this.nextKey++, particulars: '', quantity: '1', unit: 'kg', estimated_unit_price: '', remarks: '' });
+                this.errors = {};
+                this.$nextTick(() => document.getElementById(`items-${this.items.length - 1}-particulars`)?.focus());
+            }
+        },
+        remove(index) {
+            if (this.items.length > 1) {
+                this.items.splice(index, 1);
+                this.errors = {};
+                this.$nextTick(() => document.getElementById(`items-${Math.min(index, this.items.length - 1)}-particulars`)?.focus());
+            }
+        },
+    }));
+
+    Alpine.data('purchaseActuals', (entries, estimated) => ({
+        entries,
+        estimated,
+        submitting: false,
+        money: purchaseMoney,
+        startSubmit(event) {
+            event.target.elements.namedItem('action').value = event.submitter?.value || 'save';
+            this.submitting = true;
+        },
+        totalCents() {
+            return Object.values(this.entries).reduce((total, item) => total + (purchaseLineCents(item.quantity, item.actual_unit_price) ?? 0), 0);
+        },
+        pendingCount() {
+            return Object.values(this.entries).filter((item) => purchaseLineCents(item.quantity, item.actual_unit_price) === null).length;
+        },
+        lineTotal(id) {
+            const cents = purchaseLineCents(this.entries[id].quantity, this.entries[id].actual_unit_price);
+            return cents === null ? 'Pending' : this.money(cents);
+        },
+    }));
+
     Alpine.data('personExport', (ids) => ({
         ids,
         selected: [...ids],
