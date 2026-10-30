@@ -67,7 +67,7 @@ class PurchaseOrderTest extends TestCase
         $this->assertSame('assigned', $order->status);
         $this->assertSame(25025, $order->estimatedTotalCents());
         $this->assertNull($order->items->sole()->actual_unit_price);
-        $this->actingAs($purchaser, 'purchaser')->get(route('purchaser.home'))->assertOk()->assertSee($order->number());
+        $this->actingAs($purchaser, 'purchaser')->get(route('purchaser.home', ['date' => $order->purchase_date->toDateString()]))->assertOk()->assertSee($order->number());
         $this->get(route('purchaser.purchase-orders.show', $order))->assertOk()->assertSee('Fresh carrots')->assertSee('Save progress');
     }
 
@@ -173,7 +173,7 @@ class PurchaseOrderTest extends TestCase
         $this->assertSame('95.25', $order->items->sole()->fresh()->actual_unit_price);
         $this->get(route('purchaser.purchase-orders.show', $order))->assertOk()->assertDontSee('Save progress');
         $this->actingAs($order->creator, 'web')->get(route('admin.purchase-orders.show', $order))
-            ->assertOk()->assertSee('Liquidation summary')->assertSee('-'."\u{20B1}".'11.87');
+            ->assertOk()->assertSee('Liquidation summary')->assertSee('Saved')->assertSee("\u{20B1}".'11.87')->assertDontSee('-'."\u{20B1}".'11.87');
     }
 
     public function test_zero_actual_price_is_recorded_and_is_not_treated_as_missing(): void

@@ -4,19 +4,28 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StorePurchaseOrderRequest;
+use App\Http\Requests\PurchaseOrderIndexRequest;
 use App\Models\PurchaseOrder;
 use App\Models\User;
+use App\Services\DailyOrderSummary;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 class PurchaseOrderController extends Controller
 {
-    public function index(): View
+    public function index(PurchaseOrderIndexRequest $request): View
     {
+        $day = $request->day();
+
         return view('admin.purchase-orders.index', [
-            'purchaseOrders' => PurchaseOrder::with(['purchaser', 'items'])->latest('id')->paginate(15),
+            'purchaseOrders' => PurchaseOrder::with(['purchaser', 'items'])
+                ->when($day, fn (Builder $query): Builder => $query->whereDate('purchase_date', $day->toDateString()))
+                ->latest('id')->paginate(15)->withQueryString(),
             'isPurchaser' => false,
+            'day' => $day,
+            'today' => DailyOrderSummary::today(),
         ]);
     }
 

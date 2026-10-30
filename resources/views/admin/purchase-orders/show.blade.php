@@ -11,13 +11,15 @@
         $pending = $purchaseOrder->unpricedItemsCount();
         $estimated = $purchaseOrder->estimatedTotalCents();
         $actual = $purchaseOrder->actualTotalCents();
+        $comparisonLabel = $pending ? 'Estimation result' : ($actual < $estimated ? 'Saved' : ($actual > $estimated ? 'Abono' : 'Correct estimation'));
+        $comparisonHint = $pending ? 'Enter all actual prices to compare.' : ($actual < $estimated ? 'Below the estimated cost.' : ($actual > $estimated ? 'Extra amount above the estimate.' : 'Actual cost matches the estimate.'));
         $entries = $purchaseOrder->items->mapWithKeys(fn ($item) => [(string) $item->id => [
             'quantity' => $item->quantity,
             'actual_unit_price' => $editable ? old('items.'.$item->id.'.actual_unit_price', $item->actual_unit_price ?? '') : ($item->actual_unit_price ?? ''),
         ]])->all();
     @endphp
 
-    <a href="{{ route($isPurchaser ? 'purchaser.home' : 'admin.purchase-orders.index') }}" class="a-link-muted a-back po-no-print"><x-admin.icon name="arrow-left" :size="16" /> All purchase orders</a>
+    <a href="{{ route($isPurchaser ? 'purchaser.home' : 'admin.purchase-orders.index', ['date' => $purchaseOrder->purchase_date->toDateString()]) }}" class="a-link-muted a-back po-no-print"><x-admin.icon name="arrow-left" :size="16" /> Purchase orders for {{ $purchaseOrder->purchase_date->format('M j, Y') }}</a>
     <div class="a-page-head">
         <div>
             <h1 class="a-page-title">{{ $purchaseOrder->number() }}</h1>
@@ -55,7 +57,15 @@
         <div class="po-summary" aria-label="Cost summary">
             <div class="a-card a-card-pad"><h2 class="a-label">Estimated total</h2><p class="po-summary-value po-money">{{ $money::format($estimated) }}</p><p class="a-hint">Original admin estimate</p></div>
             <div class="a-card a-card-pad"><h2 class="a-label">{{ $editable ? 'Actual total' : 'Recorded actual total' }}</h2><p class="po-summary-value po-money" @if ($editable) x-text="money(totalCents())" @endif>{{ $money::format($actual) }}</p><p class="a-hint" @if ($editable) x-text="pendingCount() ? pendingCount() + ' item(s) still need an actual price' : 'All items have actual prices'" @endif>{{ $pending ? $pending.' item(s) still need an actual price' : 'All items have actual prices' }}</p></div>
-            <div class="a-card a-card-pad"><h2 class="a-label">Actual minus estimate</h2><p class="po-summary-value po-money" @if ($editable) x-text="pendingCount() ? 'Pending' : money(totalCents() - estimated)" @endif>{{ $pending ? 'Pending' : $money::format($actual - $estimated) }}</p><p class="a-hint">Positive = over estimate; negative = saved</p></div>
+            <div @class([
+                'a-card a-card-pad',
+                'po-variance-under' => ! $editable && ! $pending && $actual < $estimated,
+                'po-variance-over' => ! $editable && ! $pending && $actual > $estimated,
+            ]) @if ($editable) :class="{ 'po-variance-under': pendingCount() === 0 && totalCents() < estimated, 'po-variance-over': pendingCount() === 0 && totalCents() > estimated }" @endif>
+                <h2 class="a-label" @if ($editable) x-text="pendingCount() ? 'Estimation result' : (totalCents() < estimated ? 'Saved' : (totalCents() > estimated ? 'Abono' : 'Correct estimation'))" @endif>{{ $comparisonLabel }}</h2>
+                <p class="po-summary-value po-money" @if ($editable) x-text="pendingCount() ? 'Pending' : money(Math.abs(totalCents() - estimated))" @endif>{{ $pending ? 'Pending' : $money::format(abs($actual - $estimated)) }}</p>
+                <p class="a-hint" @if ($editable) x-text="pendingCount() ? 'Enter all actual prices to compare.' : (totalCents() < estimated ? 'Below the estimated cost.' : (totalCents() > estimated ? 'Extra amount above the estimate.' : 'Actual cost matches the estimate.'))" @endif>{{ $comparisonHint }}</p>
+            </div>
         </div>
 
         @if ($editable)

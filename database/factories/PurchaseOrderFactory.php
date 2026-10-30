@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\PurchaseOrder;
 use App\Models\User;
+use App\Services\DailyOrderSummary;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -21,7 +22,7 @@ class PurchaseOrderFactory extends Factory
         return [
             'created_by' => User::factory()->state(['is_admin' => true]),
             'purchaser_id' => User::factory()->purchaser(),
-            'purchase_date' => today(),
+            'purchase_date' => DailyOrderSummary::today(),
             'status' => PurchaseOrder::STATUS_ASSIGNED,
         ];
     }

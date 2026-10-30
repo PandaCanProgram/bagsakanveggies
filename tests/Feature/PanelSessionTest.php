@@ -125,7 +125,7 @@ class PanelSessionTest extends TestCase
             'items' => [$order->items->sole()->id => ['actual_unit_price' => '120']],
         ])->assertSessionHasNoErrors()->assertRedirect();
         Auth::forgetGuards();
-        $this->get(route('admin.purchase-orders.show', $order))->assertOk()->assertSee('240.00')->assertSee('Liquidation summary');
+        $this->get(route('admin.purchase-orders.show', $order))->assertOk()->assertSee('240.00')->assertSee('Liquidation summary')->assertSee('Abono');
         $this->assertAuthenticatedAs($admin, 'web');
         $this->assertAuthenticatedAs($purchaser, 'purchaser');
     }
