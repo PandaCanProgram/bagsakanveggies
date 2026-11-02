@@ -1,29 +1,31 @@
 @php
-    $personIds = array_map(fn (array $person): string => (string) $person['orders'][0]['id'], $summary->people);
+    $exportPeople = ($exportSummary ?? $summary)->people;
+    $personIds = array_map(fn (array $person): string => (string) $person['orders'][0]['id'], $exportPeople);
+    $dialogId = $perPerson ? 'person-export-dialog' : 'summary-export-dialog';
 @endphp
 
 <div class="a-person-export" x-data="personExport(@js($personIds))">
     <button type="button" class="a-btn a-btn-primary" @click="$refs.dialog.showModal()"
-            aria-haspopup="dialog" aria-controls="person-export-dialog">
+            aria-haspopup="dialog" aria-controls="{{ $dialogId }}">
         <x-admin.icon name="download" :size="18" />
         Download Excel
     </button>
 
-    <dialog id="person-export-dialog" class="a-export-dialog" x-ref="dialog"
-            aria-labelledby="person-export-title" aria-describedby="person-export-description"
+    <dialog id="{{ $dialogId }}" class="a-export-dialog" x-ref="dialog"
+            aria-labelledby="{{ $dialogId }}-title" aria-describedby="{{ $dialogId }}-description"
             @click="if ($event.target === $el) $el.close()">
         <div class="a-export-dialog-inner">
             <div class="a-export-dialog-head">
-                <h2 id="person-export-title" class="a-section-title">Choose people to export</h2>
+                <h2 id="{{ $dialogId }}-title" class="a-section-title">{{ $perPerson ? 'Choose people to export' : 'Choose clients for the order summary' }}</h2>
                 <button type="button" class="a-icon-btn" @click="$refs.dialog.close()" aria-label="Close customer selection">
                     <x-admin.icon name="x" />
                 </button>
             </div>
-            <p id="person-export-description" class="a-muted">
+            <p id="{{ $dialogId }}-description" class="a-muted">
                 {{ $summary->day->format('F j, Y') }}. Select whose orders to include in the Excel file.
             </p>
 
-            <form method="GET" action="{{ route('admin.orders-per-person.export') }}"
+            <form method="GET" action="{{ route($perPerson ? 'admin.orders-per-person.export' : 'admin.order-summary.export') }}"
                   @submit="selected.length ? $refs.dialog.close() : $event.preventDefault()">
                 <input type="hidden" name="date" value="{{ $date }}">
                 <input type="hidden" name="selection" value="1">
@@ -37,7 +39,7 @@
                 <fieldset class="a-export-options">
                     <legend class="sr-only">People who ordered on {{ $summary->day->format('F j, Y') }}</legend>
                     <ul class="a-export-people">
-                        @foreach ($summary->people as $person)
+                        @foreach ($exportPeople as $person)
                             <li>
                                 <label class="a-check a-export-person">
                                     <input type="checkbox" name="people[]" value="{{ $person['orders'][0]['id'] }}" x-model="selected" checked>

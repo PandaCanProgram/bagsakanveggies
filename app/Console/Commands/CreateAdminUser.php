@@ -28,7 +28,13 @@ class CreateAdminUser extends Command
             return self::FAILURE;
         }
 
-        $user = User::where('email', $email)->first();
+        $user = User::withTrashed()->where('email', $email)->first();
+
+        if ($user?->trashed()) {
+            $this->error('This email belongs to a deleted account. Use a different email address.');
+
+            return self::FAILURE;
+        }
 
         if ($user) {
             if (! $user->is_admin && ! $this->confirm("{$email} already has an account. Give it admin access?", true)) {

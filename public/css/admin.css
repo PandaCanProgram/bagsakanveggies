@@ -316,7 +316,19 @@ h1, h2, h3, p { margin: 0; }
   padding: 0;
 }
 
+/* User management */
+.a-user-card { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); }
+.a-user-details { min-width: 0; overflow-wrap: anywhere; }
+.a-user-name { font-size: 17px; font-weight: 600; }
+.a-user-details .a-hint { margin-top: var(--space-2); }
+.a-danger-zone.a-user-delete { max-width: 560px; }
+
 /* Purchase orders */
+.po-view-switch { margin-bottom: var(--space-5); }
+.a-export-purchase-group { min-width: 0; padding: 0; margin: 0; border: 0; }
+.a-export-purchase-group + .a-export-purchase-group { border-top: 1px solid var(--color-border); }
+.a-export-purchases { list-style: none; padding: 0 0 var(--space-2) var(--space-6); margin: 0; }
+.a-export-purchase-groups { margin-top: var(--space-3); }
 .po-list-card, .po-section-head, .po-form-actions { display: flex; align-items: center; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
 .po-form-actions { justify-content: flex-end; }
 .po-order-total { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-4); background: var(--color-primary-soft); border-color: var(--color-primary); border-inline-start-width: 4px; }

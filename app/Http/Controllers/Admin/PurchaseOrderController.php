@@ -3,30 +3,54 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\ExportPurchaseOrdersRequest;
 use App\Http\Requests\Admin\StorePurchaseOrderRequest;
 use App\Http\Requests\PurchaseOrderIndexRequest;
 use App\Models\PurchaseOrder;
 use App\Models\User;
 use App\Services\DailyOrderSummary;
+use App\Services\PurchaseOrderWorkbook;
+use App\Support\SimpleXlsx;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class PurchaseOrderController extends Controller
 {
     public function index(PurchaseOrderIndexRequest $request): View
     {
         $day = $request->day();
+        $query = PurchaseOrder::with(['purchaser', 'items'])
+            ->when($day, fn (Builder $query): Builder => $query->whereDate('purchase_date', $day->toDateString()));
 
         return view('admin.purchase-orders.index', [
-            'purchaseOrders' => PurchaseOrder::with(['purchaser', 'items'])
-                ->when($day, fn (Builder $query): Builder => $query->whereDate('purchase_date', $day->toDateString()))
-                ->latest('id')->paginate(15)->withQueryString(),
+            'purchaseOrders' => (clone $query)->latest('id')->paginate(15)->withQueryString(),
+            'perPurchaser' => $request->query('view') === 'purchasers',
+            'exportGroups' => PurchaseOrderWorkbook::selectionGroups((clone $query)->setEagerLoads([])->with('purchaser')->get(['id', 'purchaser_id', 'purchase_date'])),
             'isPurchaser' => false,
             'day' => $day,
             'today' => DailyOrderSummary::today(),
         ]);
+    }
+
+    public function export(ExportPurchaseOrdersRequest $request): StreamedResponse
+    {
+        $day = $request->day();
+        $validated = $request->validated();
+        $orders = PurchaseOrder::with(['purchaser', 'items'])
+            ->when($day, fn (Builder $query): Builder => $query->whereDate('purchase_date', $day->toDateString()))
+            ->when(isset($validated['purchases']), fn (Builder $query): Builder => $query->whereIn('id', $validated['purchases']))
+            ->orderBy('purchase_date')->orderBy('id')->get();
+        abort_if($orders->isEmpty(), 422, 'There are no purchases to download in this date filter.');
+        $perPurchaser = $validated['mode'] === 'purchasers';
+        $sheet = PurchaseOrderWorkbook::build($orders, $perPurchaser, $day?->format('F j, Y') ?? 'All purchase dates');
+        $filename = ($perPurchaser ? 'purchases-per-purchaser-' : 'all-purchases-').($day?->toDateString() ?? 'all-dates').'.xlsx';
+
+        return response()->streamDownload(function () use ($sheet): void {
+            echo $sheet->toString();
+        }, $filename, ['Content-Type' => SimpleXlsx::MIME_TYPE]);
     }
 
     public function create(): View

@@ -25,7 +25,7 @@ class StorePurchaseOrderRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'purchaser_id' => ['required', 'integer', Rule::exists('users', 'id')->where(fn (Builder $query): Builder => $query->where('is_purchaser', true)->where('is_admin', false))],
+            'purchaser_id' => ['required', 'integer', Rule::exists('users', 'id')->where(fn (Builder $query): Builder => $query->where('is_purchaser', true)->where('is_admin', false)->whereNull('deleted_at'))],
             'purchase_date' => ['required', 'date_format:Y-m-d'],
             'remarks' => ['nullable', 'string', 'max:2000'],
             'items' => ['required', 'array', 'min:1', 'max:100'],

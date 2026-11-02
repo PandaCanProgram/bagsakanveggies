@@ -260,6 +260,28 @@ async function makePriceSheetPdf(sheets, title) {
 }
 
 document.addEventListener('alpine:init', () => {
+    Alpine.data('purchaseExport', (groups) => ({
+        groups,
+        ids: groups.flatMap((group) => group.purchases.map((purchase) => purchase.id)),
+        selected: groups.flatMap((group) => group.purchases.map((purchase) => purchase.id)),
+        get allSelected() {
+            return this.ids.length > 0 && this.ids.every((id) => this.selected.includes(id));
+        },
+        toggleAll() {
+            this.selected = this.allSelected ? [] : [...this.ids];
+        },
+        groupSelected(index) {
+            return this.groups[index].purchases.every((purchase) => this.selected.includes(purchase.id));
+        },
+        groupPartial(index) {
+            return !this.groupSelected(index) && this.groups[index].purchases.some((purchase) => this.selected.includes(purchase.id));
+        },
+        toggleGroup(index) {
+            const ids = this.groups[index].purchases.map((purchase) => purchase.id);
+            this.selected = this.groupSelected(index) ? this.selected.filter((id) => !ids.includes(id)) : [...new Set([...this.selected, ...ids])];
+        },
+    }));
+
     Alpine.data('purchaseOrderForm', (state) => ({
         items: state.items.map((item, key) => ({ ...item, key })),
         nextKey: state.items.length,

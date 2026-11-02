@@ -70,6 +70,12 @@
                     <x-admin.icon name="clipboard-list" />
                     <span>Purchase orders</span>
                 </a>
+                @if (auth()->user()->is_admin)
+                    <a href="{{ route('admin.users.index') }}" class="a-sidenav-link" @if ($activeNav === 'users') aria-current="page" @endif>
+                        <x-admin.icon name="users" />
+                        <span>User management</span>
+                    </a>
+                @endif
             </nav>
 
             <div class="a-sidebar-foot">

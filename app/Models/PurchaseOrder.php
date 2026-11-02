@@ -27,12 +27,12 @@ class PurchaseOrder extends Model
 
     public function purchaser(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'purchaser_id');
+        return $this->belongsTo(User::class, 'purchaser_id')->withTrashed();
     }
 
     public function creator(): BelongsTo
     {
-        return $this->belongsTo(User::class, 'created_by');
+        return $this->belongsTo(User::class, 'created_by')->withTrashed();
     }
 
     public function items(): HasMany

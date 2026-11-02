@@ -8,6 +8,11 @@
         $indexRoute = $isPurchaser ? 'purchaser.home' : 'admin.purchase-orders.index';
         $pickerDay = $day ?? $today;
         $isToday = $day?->isSameDay($today) ?? false;
+        $perPurchaser = $perPurchaser ?? false;
+        $view = $perPurchaser ? 'purchasers' : null;
+        $filter = ['date' => $day?->toDateString(), 'all_dates' => $day === null ? 1 : null];
+        $visibleOrders = $perPurchaser ? $purchaseOrders->getCollection()->sortBy('purchaser_id') : $purchaseOrders;
+        $previousPurchaser = null;
     @endphp
     <div class="a-page-head">
         <div>
@@ -19,30 +24,44 @@
         @endunless
     </div>
 
+    @unless ($isPurchaser)
+        <nav class="a-segmented po-view-switch" aria-label="Purchase order view">
+            <a href="{{ route($indexRoute, $filter) }}" class="a-segmented-link" @unless ($perPurchaser) aria-current="page" @endunless>All purchases</a>
+            <a href="{{ route($indexRoute, [...$filter, 'view' => 'purchasers']) }}" class="a-segmented-link" @if ($perPurchaser) aria-current="page" @endif>Per purchaser</a>
+        </nav>
+    @endunless
+
     <div class="a-stack">
         <section class="a-card" aria-labelledby="po-date-title">
             <div class="a-toolbar a-summary-toolbar">
                 <form method="GET" action="{{ route($indexRoute) }}" class="a-day-picker">
-                    <a href="{{ route($indexRoute, ['date' => $pickerDay->subDay()->toDateString()]) }}" class="a-icon-btn" title="Previous day" aria-label="Previous day">
+                    <a href="{{ route($indexRoute, ['date' => $pickerDay->subDay()->toDateString(), 'view' => $view]) }}" class="a-icon-btn" title="Previous day" aria-label="Previous day">
                         <x-admin.icon name="chevron-left" />
                     </a>
+                    @if ($view)<input type="hidden" name="view" value="{{ $view }}">@endif
                     <label for="po-date" class="sr-only">Purchase date to show</label>
                     <input id="po-date" type="date" name="date" value="{{ $day?->toDateString() }}" required
                            class="a-input a-day-input @error('date') is-invalid @enderror"
                            x-data="{ typing: false }" @keydown="typing = true" @change="typing || $el.form.requestSubmit()"
                            @error('date') aria-invalid="true" aria-describedby="po-date-error" @enderror>
-                    <a href="{{ route($indexRoute, ['date' => $pickerDay->addDay()->toDateString()]) }}" class="a-icon-btn" title="Next day" aria-label="Next day">
+                    <a href="{{ route($indexRoute, ['date' => $pickerDay->addDay()->toDateString(), 'view' => $view]) }}" class="a-icon-btn" title="Next day" aria-label="Next day">
                         <x-admin.icon name="chevron-right" />
                     </a>
                     <button type="submit" class="a-btn a-btn-secondary a-day-show">Show</button>
                 </form>
                 <div class="a-summary-actions">
+                    @if (! $isPurchaser && $purchaseOrders->total() > 0)
+                        @include('admin.purchase-orders.partials.export')
+                    @endif
                     @unless ($isToday)
-                        <a href="{{ route($indexRoute) }}" class="a-btn a-btn-secondary">Today</a>
+                        <a href="{{ route($indexRoute, ['view' => $view]) }}" class="a-btn a-btn-secondary">Today</a>
                     @endunless
-                    <a href="{{ route($indexRoute, ['all_dates' => 1]) }}" class="a-btn a-btn-secondary" @if ($day === null) aria-current="page" @endif>All dates</a>
+                    <a href="{{ route($indexRoute, ['all_dates' => 1, 'view' => $view]) }}" class="a-btn a-btn-secondary" @if ($day === null) aria-current="page" @endif>All dates</a>
                 </div>
                 @error('date')<p id="po-date-error" class="a-field-error a-summary-error">{{ $message }}</p>@enderror
+                @if ($errors->hasAny(['purchases', 'purchases.*', 'selection', 'mode']))
+                    <p class="a-field-error a-summary-error" role="alert">{{ $errors->first('purchases') ?: $errors->first('purchases.*') ?: $errors->first('selection') ?: $errors->first('mode') }}</p>
+                @endif
             </div>
             <div class="a-summary-sheet">
                 <h2 id="po-date-title" class="a-summary-title">{{ $day ? 'Purchase orders for' : 'All purchase orders' }}</h2>
@@ -54,19 +73,12 @@
             </div>
         </section>
 
-        @forelse ($purchaseOrders as $order)
-            <article class="a-card a-card-pad po-list-card">
-                <div>
-                    <a class="po-order-link" href="{{ route($isPurchaser ? 'purchaser.purchase-orders.show' : 'admin.purchase-orders.show', $order) }}">{{ $order->number() }}</a>
-                    <p class="a-muted">{{ $order->purchase_date->format('M j, Y') }} &middot; {{ $order->purchaser->name }}</p>
-                    <p class="a-hint">{{ $order->items->count() }} {{ Str::plural('item', $order->items->count()) }} &middot; {{ $order->unpricedItemsCount() }} awaiting actual price</p>
-                </div>
-                <div class="po-list-totals">
-                    <span class="po-status">{{ $order->status === \App\Models\PurchaseOrder::STATUS_COMPLETED ? 'Completed' : 'Assigned' }}</span>
-                    <p>Estimate <strong>{{ \App\Support\PurchaseMoney::format($order->estimatedTotalCents()) }}</strong></p>
-                    <p>Recorded actual <strong>{{ \App\Support\PurchaseMoney::format($order->actualTotalCents()) }}</strong></p>
-                </div>
-            </article>
+        @forelse ($visibleOrders as $order)
+            @if ($perPurchaser && $previousPurchaser !== $order->purchaser_id)
+                <h2 class="a-section-title">{{ $order->purchaser->name }}</h2>
+            @endif
+            @include('admin.purchase-orders.partials.order-card')
+            @php($previousPurchaser = $order->purchaser_id)
         @empty
             <div class="a-card a-empty">
                 <span class="a-empty-icon"><x-admin.icon name="clipboard-list" :size="28" /></span>

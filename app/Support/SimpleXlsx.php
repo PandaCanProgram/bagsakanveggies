@@ -3,7 +3,7 @@
 namespace App\Support;
 
 /**
- * A one-sheet Excel (.xlsx) file of text cells with a few built-in styles, ready to print.
+ * Excel (.xlsx) worksheets with text, numbers, formulas and print layouts.
  *
  * The file is zipped by hand (uncompressed), so downloads work on any host, even one without PHP's zip extension.
  */
@@ -14,7 +14,7 @@ class SimpleXlsx
     /**
      * Cell styles by name: [font, fill, border, horizontal alignment], pointing into the lists in styles.xml.
      *
-     * @var array<string, array{0: int, 1: int, 2: int, 3: string|null}>
+     * @var array<string, array{0: int, 1: int, 2: int, 3: string|null, 4?: int}>
      */
     protected const STYLES = [
         'default' => [0, 0, 0, null],
@@ -26,6 +26,11 @@ class SimpleXlsx
         'cell-right' => [0, 0, 1, 'right'],
         'total' => [1, 0, 1, null],
         'total-right' => [1, 0, 1, 'right'],
+        'template-title' => [2, 0, 0, 'center'],
+        'template-header' => [1, 3, 1, 'center'],
+        'quantity' => [0, 0, 1, 'right', 164],
+        'money' => [0, 0, 1, 'right', 165],
+        'money-total' => [1, 0, 1, 'right', 165],
     ];
 
     protected const XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'."\n";
@@ -37,9 +42,29 @@ class SimpleXlsx
     protected const DOCUMENT_RELATIONSHIPS_NAMESPACE = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 
     /**
-     * @var list<list<array{text: string, style: string}>>
+     * @var list<list<array{value: string|int|float|null, style: string, formula: string|null}>>
      */
     protected array $rows = [];
+
+    /** @var list<self> */
+    protected array $sheets = [];
+
+    /** @var list<string> */
+    protected array $merges = [];
+
+    /** @var array<int, float> */
+    protected array $rowHeights = [];
+
+    /** @var list<int> */
+    protected array $pageBreaks = [];
+
+    protected ?int $paperSize = null;
+
+    protected bool $singlePage = false;
+
+    protected int $repeatRows = 0;
+
+    protected string $orientation = 'portrait';
 
     /**
      * @param  list<int|float>  $columnWidths  Widths in characters, starting at column A.
@@ -52,20 +77,87 @@ class SimpleXlsx
     /**
      * Add a row of text, with one style for every cell or a style per cell.
      *
-     * @param  list<string>  $texts
+     * @param  list<string|int|float|null|array{formula: string, value: string|int|float|null}>  $texts
      * @param  string|list<string>  $styles  Names from STYLES.
      */
-    public function addRow(array $texts = [], string|array $styles = 'default'): static
+    public function addRow(array $texts = [], string|array $styles = 'default', ?float $height = null): static
     {
         $cells = [];
 
         foreach (array_values($texts) as $index => $text) {
-            $cells[] = ['text' => $text, 'style' => is_array($styles) ? ($styles[$index] ?? 'default') : $styles];
+            $cells[] = [
+                'value' => is_array($text) ? $text['value'] : $text,
+                'formula' => is_array($text) ? $text['formula'] : null,
+                'style' => is_array($styles) ? ($styles[$index] ?? 'default') : $styles,
+            ];
         }
 
         $this->rows[] = $cells;
 
+        if ($height !== null) {
+            $this->rowHeights[count($this->rows)] = $height;
+        }
+
         return $this;
+    }
+
+    /** @return array{formula: string, value: string|int|float|null} */
+    public static function formula(string $formula, string|int|float|null $value = null): array
+    {
+        return ['formula' => ltrim($formula, '='), 'value' => $value];
+    }
+
+    public function addSheet(self $sheet): static
+    {
+        if ($sheet === $this) {
+            throw new \InvalidArgumentException('A worksheet cannot contain itself.');
+        }
+
+        $this->sheets[] = $sheet;
+
+        return $this;
+    }
+
+    public function merge(string $range): static
+    {
+        $this->merges[] = $range;
+
+        return $this;
+    }
+
+    public function forPrint(int $paperSize = 9, bool $singlePage = false, int $repeatRows = 0, string $orientation = 'portrait'): static
+    {
+        $this->paperSize = $paperSize;
+        $this->singlePage = $singlePage;
+        $this->repeatRows = $repeatRows;
+        $this->orientation = $orientation;
+
+        return $this;
+    }
+
+    public function breakBeforeRow(int $row): static
+    {
+        $this->pageBreaks[] = $row - 1;
+
+        return $this;
+    }
+
+    public function rowCount(): int
+    {
+        return count($this->rows);
+    }
+
+    public static function columnName(int $number): string
+    {
+        $name = '';
+
+        while ($number > 0) {
+            $number--;
+            $name = chr(65 + $number % 26).$name;
+            $number = intdiv($number, 26);
+        }
+
+        return $name;
     }
 
     /**
@@ -73,26 +165,44 @@ class SimpleXlsx
      */
     public function toString(): string
     {
-        return $this->zip([
+        $sheets = [$this, ...$this->sheets];
+        $relationships = '';
+
+        foreach ($sheets as $index => $sheet) {
+            $relationships .= '<Relationship Id="rId'.($index + 1).'" Type="'.self::DOCUMENT_RELATIONSHIPS_NAMESPACE.'/worksheet" Target="worksheets/sheet'.($index + 1).'.xml"/>';
+        }
+
+        $relationships .= '<Relationship Id="rId'.(count($sheets) + 1).'" Type="'.self::DOCUMENT_RELATIONSHIPS_NAMESPACE.'/styles" Target="styles.xml"/>';
+        $files = [
             '[Content_Types].xml' => $this->contentTypesXml(),
             '_rels/.rels' => $this->relationshipsXml(['officeDocument' => 'xl/workbook.xml']),
             'xl/workbook.xml' => $this->workbookXml(),
-            'xl/_rels/workbook.xml.rels' => $this->relationshipsXml(['worksheet' => 'worksheets/sheet1.xml', 'styles' => 'styles.xml']),
+            'xl/_rels/workbook.xml.rels' => self::XML_DECLARATION.'<Relationships xmlns="'.self::PACKAGE_RELATIONSHIPS_NAMESPACE.'">'.$relationships.'</Relationships>',
             'xl/styles.xml' => $this->stylesXml(),
-            'xl/worksheets/sheet1.xml' => $this->worksheetXml(),
-        ]);
+        ];
+
+        foreach ($sheets as $index => $sheet) {
+            $files['xl/worksheets/sheet'.($index + 1).'.xml'] = $sheet->worksheetXml();
+        }
+
+        return $this->zip($files);
     }
 
     protected function contentTypesXml(): string
     {
         $spreadsheetType = 'application/vnd.openxmlformats-officedocument.spreadsheetml';
+        $worksheets = '';
+
+        foreach ([$this, ...$this->sheets] as $index => $sheet) {
+            $worksheets .= '<Override PartName="/xl/worksheets/sheet'.($index + 1).'.xml" ContentType="'.$spreadsheetType.'.worksheet+xml"/>';
+        }
 
         return self::XML_DECLARATION
             .'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
             .'<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
             .'<Default Extension="xml" ContentType="application/xml"/>'
             .'<Override PartName="/xl/workbook.xml" ContentType="'.$spreadsheetType.'.sheet.main+xml"/>'
-            .'<Override PartName="/xl/worksheets/sheet1.xml" ContentType="'.$spreadsheetType.'.worksheet+xml"/>'
+            .$worksheets
             .'<Override PartName="/xl/styles.xml" ContentType="'.$spreadsheetType.'.styles+xml"/>'
             .'</Types>';
     }
@@ -114,12 +224,39 @@ class SimpleXlsx
 
     protected function workbookXml(): string
     {
-        // Excel sheet names are at most 31 characters, without \ / ? * [ ] or :
-        $sheetName = mb_substr(str_replace(['\\', '/', '?', '*', '[', ']', ':'], '', $this->sheetName), 0, 31);
+        $sheetXml = '';
+        $definedNames = '';
+        $usedNames = [];
+
+        foreach ([$this, ...$this->sheets] as $index => $sheet) {
+            $baseName = trim(mb_substr(str_replace(['\\', '/', '?', '*', '[', ']', ':'], '', $sheet->sheetName), 0, 31), "'") ?: 'Sheet';
+            $sheetName = $baseName;
+            $suffix = 2;
+
+            while (in_array(mb_strtolower($sheetName), $usedNames, true)) {
+                $ending = ' '.$suffix++;
+                $sheetName = mb_substr($baseName, 0, 31 - mb_strlen($ending)).$ending;
+            }
+
+            $usedNames[] = mb_strtolower($sheetName);
+            $sheetXml .= '<sheet name="'.$this->escape($sheetName).'" sheetId="'.($index + 1).'" r:id="rId'.($index + 1).'"/>';
+            $quotedName = "'".str_replace("'", "''", $sheetName)."'";
+
+            if ($sheet->paperSize !== null) {
+                $columns = max(1, count($sheet->columnWidths), ...array_map('count', $sheet->rows));
+                $definedNames .= '<definedName name="_xlnm.Print_Area" localSheetId="'.$index.'">'.$this->escape($quotedName.'!$A$1:$'.self::columnName($columns).'$'.max(1, count($sheet->rows))).'</definedName>';
+            }
+
+            if ($sheet->repeatRows > 0) {
+                $definedNames .= '<definedName name="_xlnm.Print_Titles" localSheetId="'.$index.'">'.$this->escape($quotedName.'!$1:$'.$sheet->repeatRows).'</definedName>';
+            }
+        }
 
         return self::XML_DECLARATION
             .'<workbook xmlns="'.self::SPREADSHEET_NAMESPACE.'" xmlns:r="'.self::DOCUMENT_RELATIONSHIPS_NAMESPACE.'">'
-            .'<sheets><sheet name="'.$this->escape($sheetName ?: 'Sheet1').'" sheetId="1" r:id="rId1"/></sheets>'
+            .'<sheets>'.$sheetXml.'</sheets>'
+            .($definedNames ? '<definedNames>'.$definedNames.'</definedNames>' : '')
+            .'<calcPr calcId="191029" fullCalcOnLoad="1"/>'
             .'</workbook>';
     }
 
@@ -128,22 +265,25 @@ class SimpleXlsx
         $edge = fn (string $side) => '<'.$side.' style="thin"><color rgb="FF8C9A8F"/></'.$side.'>';
         $cellFormats = '';
 
-        foreach (self::STYLES as [$font, $fill, $border, $alignment]) {
-            $cellFormats .= '<xf numFmtId="0" fontId="'.$font.'" fillId="'.$fill.'" borderId="'.$border.'" xfId="0" applyFont="1" applyFill="1" applyBorder="1"'
-                .($alignment ? ' applyAlignment="1"><alignment horizontal="'.$alignment.'"/></xf>' : '/>');
+        foreach (self::STYLES as $style) {
+            [$font, $fill, $border, $alignment] = $style;
+            $cellFormats .= '<xf numFmtId="'.($style[4] ?? 0).'" fontId="'.$font.'" fillId="'.$fill.'" borderId="'.$border.'" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">'
+                .'<alignment vertical="center" wrapText="1"'.($alignment ? ' horizontal="'.$alignment.'"' : '').'/></xf>';
         }
 
         return self::XML_DECLARATION
             .'<styleSheet xmlns="'.self::SPREADSHEET_NAMESPACE.'">'
+            .'<numFmts count="2"><numFmt numFmtId="164" formatCode="0.###"/><numFmt numFmtId="165" formatCode="#,##0.00"/></numFmts>'
             .'<fonts count="3">'
             .'<font><sz val="11"/><name val="Calibri"/></font>'
             .'<font><b/><sz val="11"/><name val="Calibri"/></font>'
             .'<font><b/><sz val="14"/><name val="Calibri"/></font>'
             .'</fonts>'
-            .'<fills count="3">'
+            .'<fills count="4">'
             .'<fill><patternFill patternType="none"/></fill>'
             .'<fill><patternFill patternType="gray125"/></fill>'
             .'<fill><patternFill patternType="solid"><fgColor rgb="FFE3F3E1"/></patternFill></fill>'
+            .'<fill><patternFill patternType="solid"><fgColor rgb="FFE7E6E6"/></patternFill></fill>'
             .'</fills>'
             .'<borders count="2">'
             .'<border><left/><right/><top/><bottom/><diagonal/></border>'
@@ -168,24 +308,37 @@ class SimpleXlsx
 
         foreach ($this->rows as $rowIndex => $cells) {
             $rowNumber = $rowIndex + 1;
-            $rows .= '<row r="'.$rowNumber.'">';
+            $rows .= '<row r="'.$rowNumber.'"'.(isset($this->rowHeights[$rowNumber]) ? ' ht="'.$this->rowHeights[$rowNumber].'" customHeight="1"' : '').'>';
 
             foreach ($cells as $columnIndex => $cell) {
-                // Columns A to Z, plenty for these sheets.
-                $rows .= '<c r="'.chr(65 + $columnIndex).$rowNumber.'" s="'.$styleIndexes[$cell['style']].'" t="inlineStr">'
-                    .'<is><t xml:space="preserve">'.$this->escape($cell['text']).'</t></is></c>';
+                $reference = self::columnName($columnIndex + 1).$rowNumber;
+                $prefix = '<c r="'.$reference.'" s="'.$styleIndexes[$cell['style']].'"';
+
+                if ($cell['formula'] !== null) {
+                    $rows .= $prefix.(is_string($cell['value']) ? ' t="str"' : '').'><f>'.$this->escape($cell['formula']).'</f>'
+                        .($cell['value'] !== null ? '<v>'.$this->escape((string) $cell['value']).'</v>' : '').'</c>';
+                } elseif (is_int($cell['value']) || is_float($cell['value'])) {
+                    $rows .= $prefix.'><v>'.$cell['value'].'</v></c>';
+                } else {
+                    $rows .= $prefix.' t="inlineStr"><is><t xml:space="preserve">'.$this->escape($cell['value'] ?? '').'</t></is></c>';
+                }
             }
 
             $rows .= '</row>';
         }
+
+        $merges = implode('', array_map(fn (string $range): string => '<mergeCell ref="'.$this->escape($range).'"/>', $this->merges));
+        $breaks = implode('', array_map(fn (int $row): string => '<brk id="'.$row.'" min="0" max="16383" man="1"/>', $this->pageBreaks));
 
         return self::XML_DECLARATION
             .'<worksheet xmlns="'.self::SPREADSHEET_NAMESPACE.'">'
             .'<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>'
             .($columns === '' ? '' : '<cols>'.$columns.'</cols>')
             .'<sheetData>'.$rows.'</sheetData>'
+            .($merges ? '<mergeCells count="'.count($this->merges).'">'.$merges.'</mergeCells>' : '')
             .'<pageMargins left="0.5" right="0.5" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>'
-            .'<pageSetup orientation="portrait" fitToWidth="1" fitToHeight="0"/>'
+            .'<pageSetup orientation="'.$this->escape($this->orientation).'" fitToWidth="1" fitToHeight="'.($this->singlePage ? 1 : 0).'"'.($this->paperSize !== null ? ' paperSize="'.$this->paperSize.'"' : '').'/>'
+            .($breaks ? '<rowBreaks count="'.count($this->pageBreaks).'" manualBreakCount="'.count($this->pageBreaks).'">'.$breaks.'</rowBreaks>' : '')
             .'</worksheet>';
     }
 

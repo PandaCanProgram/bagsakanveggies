@@ -13,7 +13,7 @@
     </div>
 
     @if ($purchasers->isEmpty())
-        <div class="a-alert a-alert-error" role="alert">No purchaser account is available yet. Create one with the purchaser:create Artisan command before assigning an order.</div>
+        <div class="a-alert a-alert-error" role="alert"><span>No purchaser account is available yet. <a href="{{ route('admin.users.create') }}">Add a purchaser account</a> before assigning an order.</span></div>
     @endif
 
     @php

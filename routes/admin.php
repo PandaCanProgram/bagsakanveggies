@@ -5,6 +5,7 @@ use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\PasswordController;
 use App\Http\Controllers\Admin\ProductController;
 use App\Http\Controllers\Admin\PurchaseOrderController;
+use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Purchaser\PurchaseOrderController as PurchaserPurchaseOrderController;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use App\Http\Middleware\EnsureUserIsPurchaser;
@@ -23,8 +24,10 @@ Route::prefix('admin')->name('admin.')->group(function () {
         Route::get('/order-summary/export', [DashboardController::class, 'export'])->name('order-summary.export');
         Route::get('/orders-per-person/export', [DashboardController::class, 'exportPerPerson'])->name('orders-per-person.export');
 
+        Route::get('/purchase-orders/export', [PurchaseOrderController::class, 'export'])->name('purchase-orders.export');
         Route::resource('purchase-orders', PurchaseOrderController::class)
             ->parameters(['purchase-orders' => 'purchaseOrder'])->only(['index', 'create', 'store', 'show']);
+        Route::resource('users', UserController::class)->except(['show']);
 
         Route::get('/products/print', [ProductController::class, 'print'])->name('products.print');
         Route::patch('/products/prices', [ProductController::class, 'updatePrices'])->name('products.prices.update');
