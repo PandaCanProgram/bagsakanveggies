@@ -97,7 +97,7 @@ class AdminDashboardTest extends TestCase
             $cells = [];
 
             foreach ($row->c as $cell) {
-                $cells[] = $cell['t'] == 'inlineStr' ? (string) $cell->is->t : (string) $cell->v;
+                $cells[] = (string) $cell->is->t;
             }
 
             $rows[] = $cells;
@@ -384,12 +384,7 @@ class AdminDashboardTest extends TestCase
         $this->assertSame(2, substr_count($response->getContent(), 'name="people[]"'));
         $this->get(route('admin.home', ['date' => '2026-10-01']))
             ->assertDontSee('id="person-export-dialog"', false)
-            ->assertSee('id="summary-export-dialog"', false)
-            ->assertSee('action="'.e(route('admin.order-summary.export')).'"', false)
-            ->assertSee('name="date" value="2026-10-01"', false)
-            ->assertSee('name="people[]" value="'.$juan->id.'"', false)
-            ->assertSee('name="people[]" value="'.$maria->id.'"', false)
-            ->assertDontSee('name="people[]" value="'.$tomorrow->id.'"', false);
+            ->assertSee('href="'.e(route('admin.order-summary.export', ['date' => '2026-10-01'])).'"', false);
     }
 
     #[RequiresPhpExtension('zip')]
@@ -459,8 +454,6 @@ class AdminDashboardTest extends TestCase
         ] as $query) {
             $this->getJson(route('admin.orders-per-person.export', ['date' => '2026-10-01', ...$query]))
                 ->assertUnprocessable();
-            $this->getJson(route('admin.order-summary.export', ['date' => '2026-10-01', ...$query]))
-                ->assertUnprocessable();
         }
     }
 
@@ -509,7 +502,7 @@ class AdminDashboardTest extends TestCase
     }
 
     #[RequiresPhpExtension('zip')]
-    public function test_order_summary_downloads_the_template_with_numeric_quantities_and_bags_separate(): void
+    public function test_order_summary_downloads_as_an_excel_sheet_laid_out_like_the_dashboard(): void
     {
         $sayote = $this->makeProduct('Sayote');
         $carrots = $this->makeProduct('Fresh Carrots');
@@ -521,45 +514,14 @@ class AdminDashboardTest extends TestCase
         $response->assertDownload('order-summary-2026-10-01.xlsx')
             ->assertHeader('Content-Type', SimpleXlsx::MIME_TYPE);
         $this->assertSame([
-            ['UNIFIED PICKING LIST'],
+            ['DAILY ORDER SUMMARY'],
             ['October 1, 2026'],
-            ['Enter buying estimates in Unit Price. The total appears when every item is priced.'],
-            ['ITEM', 'QTY', 'UNIT', 'Unit Price', 'Total Price'],
-            ['Fresh Carrots', '1', '10 kg bag', '', ''],
-            ['Sayote', '3', 'kg', '', ''],
-            ['TOTAL', '', '', '', ''],
+            ['Orders received: 2'],
+            [],
+            ['Product', 'Total Qty Ordered'],
+            ['Fresh Carrots', '10 kg'],
+            ['Sayote', '3 kg'],
+            ['TOTAL', '13 kg'],
         ], $this->sheetRows($response->streamedContent()));
-    }
-
-    #[RequiresPhpExtension('zip')]
-    public function test_selected_summary_includes_repeat_checkouts_and_excludes_other_clients_and_dates(): void
-    {
-        $product = $this->makeProduct('Sayote');
-        $juan = $this->placeOrder('2026-10-01 08:00', [[$product, '1 kg', 1]]);
-        $this->placeOrder('2026-10-01 09:00', [[$product, '1 kg', 2]], ['contact_number' => '0917-123-4567']);
-        $this->placeOrder('2026-10-01 10:00', [[$product, '1 kg', 10]], [
-            'full_name' => 'Excluded Client', 'contact_number' => '09281112222',
-        ]);
-        $this->placeOrder('2026-10-02 08:00', [[$product, '1 kg', 20]]);
-
-        $response = $this->actingAs($this->admin)->get(route('admin.order-summary.export', [
-            'date' => '2026-10-01', 'selection' => 1, 'people' => [$juan->id],
-        ]))->assertDownload('order-summary-2026-10-01.xlsx');
-        $bytes = $response->streamedContent();
-        $this->assertContains(['Sayote', '3', 'kg', '', ''], $this->sheetRows($bytes));
-        $path = tempnam(sys_get_temp_dir(), 'selected-summary');
-        file_put_contents($path, $bytes);
-        $zip = new ZipArchive;
-        $zip->open($path);
-        $workbook = new SimpleXMLElement($zip->getFromName('xl/workbook.xml'));
-        $this->assertCount(3, $workbook->sheets->sheet);
-        foreach ([2, 3] as $number) {
-            $xml = $zip->getFromName('xl/worksheets/sheet'.$number.'.xml');
-            $this->assertStringContainsString('Juan Dela Cruz', $xml);
-            $this->assertStringNotContainsString('Excluded Client', $xml);
-            $this->assertStringContainsString('<v>3</v>', $xml);
-        }
-        $zip->close();
-        unlink($path);
     }
 }

@@ -1,6 +1,6 @@
 @extends('layouts.admin')
 
-@section('title', $purchaseOrder->number())
+@section('title', $purchaseOrder->displayName())
 @section('nav', 'purchase-orders')
 
 @section('content')
@@ -22,7 +22,7 @@
     <a href="{{ route($isPurchaser ? 'purchaser.home' : 'admin.purchase-orders.index', ['date' => $purchaseOrder->purchase_date->toDateString()]) }}" class="a-link-muted a-back po-no-print"><x-admin.icon name="arrow-left" :size="16" /> Purchase orders for {{ $purchaseOrder->purchase_date->format('M j, Y') }}</a>
     <div class="a-page-head">
         <div>
-            <h1 class="a-page-title">{{ $purchaseOrder->number() }}</h1>
+            <h1 class="a-page-title">{{ $purchaseOrder->displayName() }}</h1>
             <p class="a-muted">{{ $isPurchaser ? 'Record what each item actually cost per unit.' : 'Estimated and actual costs, ready for your liquidation summary.' }}</p>
         </div>
         <button type="button" class="a-btn a-btn-secondary" onclick="window.print()"><x-admin.icon name="printer" /> Print {{ $completed ? 'liquidation' : 'purchase order' }}</button>
@@ -46,6 +46,7 @@
                 <span class="po-status">{{ $completed ? 'Completed' : 'Assigned' }}</span>
             </div>
             <dl class="po-metadata">
+                @if (filled($purchaseOrder->name))<div><dt>Name</dt><dd>{{ $purchaseOrder->name }}</dd></div>@endif
                 <div><dt>Purchase date</dt><dd>{{ $purchaseOrder->purchase_date->format('F j, Y') }}</dd></div>
                 <div><dt>Purchaser</dt><dd>{{ $purchaseOrder->purchaser->name }}</dd></div>
                 <div><dt>Prepared by</dt><dd>{{ $purchaseOrder->creator->name }}</dd></div>

@@ -253,10 +253,11 @@ class PurchaseOrderTest extends TestCase
         $this->assertSame('-'."\u{20B1}".'11.87', PurchaseMoney::format(-1187));
     }
 
-    /** @return array{purchaser_id: int, purchase_date: string, remarks: string, items: list<array{particulars: string, quantity: string, unit: string, estimated_unit_price: string, remarks: string}>} */
+    /** @return array{name: string, purchaser_id: int, purchase_date: string, remarks: string, items: list<array{particulars: string, quantity: string, unit: string, estimated_unit_price: string, remarks: string}>} */
     private function newOrderPayload(User $purchaser): array
     {
         return [
+            'name' => 'Market purchase',
             'purchaser_id' => $purchaser->id,
             'purchase_date' => '2026-10-27',
             'remarks' => 'Buy at the market',

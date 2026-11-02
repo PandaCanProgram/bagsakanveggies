@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Services\DailyOrderSummary;
-use App\Services\OrderSummaryWorkbook;
 use App\Services\PerPersonOrderSummary;
 use App\Support\Format;
 use App\Support\SimpleXlsx;
@@ -29,19 +28,28 @@ class DashboardController extends Controller
             'perPerson' => $perPerson,
             'summary' => $perPerson ? PerPersonOrderSummary::for($day) : DailyOrderSummary::for($day),
             'today' => DailyOrderSummary::today(),
-            'exportSummary' => $perPerson ? null : PerPersonOrderSummary::for($day),
         ]);
     }
 
     /**
-     * Download the selected clients' picking list, packing summary and packing lists.
+     * Download the day's order summary as an Excel file laid out like the dashboard.
      */
     public function export(Request $request): StreamedResponse
     {
-        $summary = PerPersonOrderSummary::for($this->requestedDay($request));
-        $people = $this->selectedPeople($request, $summary);
-        abort_if($people === [], 422, 'There are no client orders to download for this date.');
-        $sheet = OrderSummaryWorkbook::build($summary->day, $people);
+        $summary = DailyOrderSummary::for($this->requestedDay($request));
+
+        $sheet = (new SimpleXlsx('Order summary', [36, 22]))
+            ->addRow(['DAILY ORDER SUMMARY'], 'title')
+            ->addRow([$summary->day->format('F j, Y')])
+            ->addRow(['Orders received: '.$summary->orderCount])
+            ->addRow()
+            ->addRow(['Product', 'Total Qty Ordered'], ['header', 'header-right']);
+
+        foreach ($summary->lines as $line) {
+            $sheet->addRow([$line['product'], $line['quantity']], ['cell', 'cell-right']);
+        }
+
+        $sheet->addRow(['TOTAL', $summary->total], ['total', 'total-right']);
 
         return $this->download($sheet, 'order-summary-'.$summary->day->toDateString().'.xlsx');
     }
@@ -52,7 +60,18 @@ class DashboardController extends Controller
     public function exportPerPerson(Request $request): StreamedResponse
     {
         $summary = PerPersonOrderSummary::for($this->requestedDay($request));
-        $people = $this->selectedPeople($request, $summary);
+        $personIds = array_map(fn (array $person): int => $person['orders'][0]['id'], $summary->people);
+        $selection = $request->validate([
+            'selection' => ['sometimes', Rule::in(['1'])],
+            'people' => ['required_if:selection,1', 'array', 'min:1'],
+            'people.*' => ['required', 'integer', 'distinct', Rule::in($personIds)],
+        ], [
+            'people.required_if' => 'Select at least one person to download.',
+            'people.min' => 'Select at least one person to download.',
+            'people.*.in' => 'A selected person is not on this day. Reload the dashboard and try again.',
+        ]);
+        $selectedIds = isset($selection['people']) ? array_map('intval', $selection['people']) : $personIds;
+        $people = array_values(array_filter($summary->people, fn (array $person): bool => in_array($person['orders'][0]['id'], $selectedIds, true)));
         $personCount = count($people);
         $orderCount = array_sum(array_map(fn (array $person): int => count($person['orders']), $people));
         $total = array_sum(array_column($people, 'total'));
@@ -86,24 +105,6 @@ class DashboardController extends Controller
             ->addRow([$totalLabel, '', '', Format::peso($total)], ['total', 'total', 'total', 'total-right']);
 
         return $this->download($sheet, 'orders-per-person-'.$summary->day->toDateString().'.xlsx');
-    }
-
-    /** @return list<array<string, mixed>> */
-    private function selectedPeople(Request $request, PerPersonOrderSummary $summary): array
-    {
-        $personIds = array_map(fn (array $person): int => $person['orders'][0]['id'], $summary->people);
-        $selection = $request->validate([
-            'selection' => ['sometimes', Rule::in(['1'])],
-            'people' => ['required_if:selection,1', 'array', 'min:1'],
-            'people.*' => ['required', 'integer', 'distinct', Rule::in($personIds)],
-        ], [
-            'people.required_if' => 'Select at least one person to download.',
-            'people.min' => 'Select at least one person to download.',
-            'people.*.in' => 'A selected person is not on this day. Reload the dashboard and try again.',
-        ]);
-        $selectedIds = isset($selection['people']) ? array_map('intval', $selection['people']) : $personIds;
-
-        return array_values(array_filter($summary->people, fn (array $person): bool => in_array($person['orders'][0]['id'], $selectedIds, true)));
     }
 
     protected function download(SimpleXlsx $sheet, string $filename): StreamedResponse

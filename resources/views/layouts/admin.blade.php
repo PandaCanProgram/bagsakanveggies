@@ -68,7 +68,7 @@
                 @endif
                 <a href="{{ route(auth()->user()->is_admin ? 'admin.purchase-orders.index' : 'purchaser.home') }}" class="a-sidenav-link" @if ($activeNav === 'purchase-orders') aria-current="page" @endif>
                     <x-admin.icon name="clipboard-list" />
-                    <span>Purchase orders</span>
+                    <span>{{ auth()->user()->is_admin ? 'PURCHASE ORDERS' : 'Purchase orders' }}</span>
                 </a>
                 @if (auth()->user()->is_admin)
                     <a href="{{ route('admin.users.index') }}" class="a-sidenav-link" @if ($activeNav === 'users') aria-current="page" @endif>

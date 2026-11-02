@@ -270,6 +270,7 @@ class UserManagementTest extends TestCase
             ->assertSessionHasErrors('email');
         $this->assertGuest('purchaser');
         $this->post(route('admin.purchase-orders.store'), [
+            'name' => 'Market purchase',
             'purchaser_id' => $purchaser->id, 'purchase_date' => '2026-11-02',
             'items' => [['particulars' => 'Carrots', 'quantity' => '1', 'unit' => 'kg', 'estimated_unit_price' => '100']],
         ])->assertSessionHasErrors('purchaser_id');

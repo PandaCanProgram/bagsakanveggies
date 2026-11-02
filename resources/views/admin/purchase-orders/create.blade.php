@@ -37,6 +37,12 @@
 
         <section class="a-card a-card-pad a-stack" aria-labelledby="po-details-title">
             <h2 id="po-details-title" class="a-section-title">Order details</h2>
+            <div class="a-field po-name-field">
+                <label for="name" class="a-label">Name <span class="po-required-label">Required</span></label>
+                <input type="text" name="name" id="name" class="a-input @error('name') is-invalid @enderror" value="{{ old('name') }}" maxlength="120" required aria-required="true" aria-describedby="po-name-hint @error('name') name-error @enderror" @error('name') aria-invalid="true" @enderror>
+                <p class="a-hint" id="po-name-hint">Enter a name, for example Barrio Fiesta. This identifies the purchase in the lists, download checkboxes and Excel forms.</p>
+                @error('name')<p class="a-field-error" id="name-error">{{ $message }}</p>@enderror
+            </div>
             <div class="po-fields">
                 <div class="a-field">
                     <label for="purchaser_id" class="a-label">Assign to purchaser</label>

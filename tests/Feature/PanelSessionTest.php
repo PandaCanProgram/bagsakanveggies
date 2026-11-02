@@ -113,6 +113,7 @@ class PanelSessionTest extends TestCase
     {
         [$admin, $purchaser] = $this->signInBothPanels();
         $this->post(route('admin.purchase-orders.store'), [
+            'name' => 'Market purchase',
             'purchaser_id' => $purchaser->id,
             'purchase_date' => '2026-10-27',
             'items' => [['particulars' => 'Carrots', 'quantity' => '2', 'unit' => 'kg', 'estimated_unit_price' => '100']],

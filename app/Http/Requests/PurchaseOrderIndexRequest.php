@@ -27,6 +27,7 @@ class PurchaseOrderIndexRequest extends FormRequest
         return [
             'date' => ['nullable', 'date_format:Y-m-d'],
             'all_dates' => ['sometimes', 'boolean'],
+            'search' => ['nullable', 'string', 'max:120'],
         ];
     }
 
