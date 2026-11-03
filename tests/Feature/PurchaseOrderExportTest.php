@@ -188,8 +188,58 @@ class PurchaseOrderExportTest extends TestCase
         $this->assertSame(1200.0, (float) $picking->sheetData->row[5]->c[4]->v);
         $packing = new SimpleXMLElement($parts['xl/worksheets/sheet4.xml']);
         $this->assertCount(2, $packing->rowBreaks->brk);
+        $this->assertSame('0', (string) $packing->sheetPr->pageSetUpPr['fitToPage']);
+        $this->assertSame('90', (string) $packing->pageSetup['scale']);
         foreach ($packing->sheetData->row as $row) {
             $this->assertLessThanOrEqual(409.5, (float) $row['ht']);
+        }
+    }
+
+    #[RequiresPhpExtension('zip')]
+    public function test_odd_packing_lists_are_compact_and_do_not_draw_an_empty_second_table(): void
+    {
+        $buyer = User::factory()->purchaser()->create();
+        $first = $this->purchase($buyer, 'Carrots', '100.00');
+        PurchaseOrderItem::factory()->count(2)->create(['purchase_order_id' => $first->id]);
+        $this->purchase($buyer, 'Cabbage', '80.00');
+        $last = $this->purchase($buyer, 'Tomatoes', '60.00');
+        $parts = $this->parts(PurchaseOrderWorkbook::build(PurchaseOrder::with(['purchaser', 'items'])->get(), true, 'November 3, 2026')->toString());
+        $packing = new SimpleXMLElement($parts['xl/worksheets/sheet3.xml']);
+        $styles = new SimpleXMLElement($parts['xl/styles.xml']);
+        $this->assertCount(1, $packing->rowBreaks->brk);
+        $lastPage = (int) $packing->rowBreaks->brk['id'] + 1;
+
+        foreach ($packing->sheetData->row as $row) {
+            if (count($row->c) === 0) {
+                $this->assertLessThanOrEqual(12, (float) $row['ht'], 'A blank spacer must not create a large worksheet gap.');
+            }
+
+            foreach ($row->c as $cell) {
+                if ((int) $row['r'] >= $lastPage) {
+                    $this->assertMatchesRegularExpression('/^[ABC]\d+$/', (string) $cell['r'], 'The final unmatched purchase must have no cells for a right-hand table.');
+                }
+            }
+        }
+
+        foreach ($packing->mergeCells->mergeCell as $merge) {
+            $range = (string) $merge['ref'];
+            if (preg_match('/^E(\d+):/', $range, $match)) {
+                $this->assertLessThan($lastPage, (int) $match[1]);
+            }
+        }
+
+        foreach ($packing->sheetData->row[5]->c as $cell) {
+            if (preg_match('/^[EFG]/', (string) $cell['r'])) {
+                $this->assertSame('0', (string) $styles->cellXfs->xf[(int) $cell['s']]['borderId'], 'A shorter list must stop drawing its table after its last item.');
+            }
+        }
+
+        $this->assertStringContainsString($last->number(), $parts['xl/worksheets/sheet3.xml']);
+        $summary = new SimpleXMLElement($parts['xl/worksheets/sheet2.xml']);
+        foreach ($summary->sheetData->row[4]->c as $cell) {
+            if (isset($cell->v)) {
+                $this->assertSame('center', (string) $styles->cellXfs->xf[(int) $cell['s']]->alignment['horizontal']);
+            }
         }
     }
 
@@ -207,6 +257,9 @@ class PurchaseOrderExportTest extends TestCase
         $this->assertGreaterThan(0, count($packing->rowBreaks->brk));
         $items = 0;
         foreach ($packing->sheetData->row as $row) {
+            foreach ($row->c as $cell) {
+                $this->assertMatchesRegularExpression('/^[ABC]\d+$/', (string) $cell['r']);
+            }
             if (isset($row->c[0]) && str_starts_with((string) $row->c[0]->is->t, 'Item ')) {
                 $items++;
             }

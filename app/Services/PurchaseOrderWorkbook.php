@@ -85,7 +85,7 @@ class PurchaseOrderWorkbook
                     }
                 }
 
-                $sheet->addRow($cells, ['cell', 'quantity', 'cell', ...array_fill(0, count($batch), 'quantity')], self::lineHeight($line));
+                $sheet->addRow($cells, ['cell', 'quantity', 'unit', ...array_fill(0, count($batch), 'quantity')], self::lineHeight($line));
             }
 
             $summaries[] = $sheet;
@@ -95,7 +95,7 @@ class PurchaseOrderWorkbook
             $picking->addRow([
                 $line['product'], SimpleXlsx::formula('SUM('.implode(',', $line['quantityReferences']).')', $line['thousandths'] / 1000), $line['unit'], $line['priceCents'] / 100,
                 SimpleXlsx::formula('SUM('.implode(',', $line['totalReferences']).')', $line['totalCents'] / 100),
-            ], ['cell', 'quantity', 'cell', 'money', 'money'], self::lineHeight($line));
+            ], ['cell', 'quantity', 'unit', 'money', 'money'], self::lineHeight($line));
         }
 
         $last = $picking->rowCount();
@@ -106,7 +106,7 @@ class PurchaseOrderWorkbook
             $picking->addSheet($summary);
         }
 
-        $packing = (new SimpleXlsx('Packing lists', [25, 9, 15, 3, 25, 9, 15]))->forPrint();
+        $packing = (new SimpleXlsx('Packing lists', [25, 9, 15, 3, 25, 9, 15]))->forPrint(scale: 90);
 
         foreach (array_chunk($purchases, 2) as $pair) {
             $lists = array_map(fn (array $purchase): array => $purchaseReferences[$purchase['id']] ?? [], $pair);
@@ -114,20 +114,19 @@ class PurchaseOrderWorkbook
             $part = 0;
 
             do {
+                $active = [isset($lists[0][$offsets[0]]), isset($lists[1][$offsets[1]])];
+
+                if (! $active[0] && ! $active[1]) {
+                    break;
+                }
+
                 if ($packing->rowCount()) {
+                    $packing->addRow([], 'default', 12);
                     $packing->breakBeforeRow($packing->rowCount() + 1);
                 }
 
                 $part++;
-                $top = $packing->rowCount() + 1;
-                $nameHeight = max(40, ...array_map(fn (array $purchase): int => (int) ceil(mb_strlen($purchase['name']) / 40) * 14, $pair));
-                $packing->addRow(['PACKING LIST', '', '', '', isset($pair[1]) ? 'PACKING LIST' : '', '', ''], 'template-title', 24)
-                    ->merge('A'.$top.':C'.$top)->merge('E'.$top.':G'.$top)
-                    ->addRow([$pair[0]['name'].($part > 1 ? ' (continued)' : ''), '', '', '', isset($pair[1]) ? $pair[1]['name'].($part > 1 ? ' (continued)' : '') : '', '', ''], 'bold', $nameHeight)
-                    ->merge('A'.($top + 1).':C'.($top + 1))->merge('E'.($top + 1).':G'.($top + 1))
-                    ->addRow([$pair[0]['date'], '', '', '', isset($pair[1]) ? $pair[1]['date'] : '', '', ''], 'default', 22)
-                    ->merge('A'.($top + 2).':C'.($top + 2))->merge('E'.($top + 2).':G'.($top + 2))
-                    ->addRow(['ITEM', 'QTY', 'UNIT', '', isset($pair[1]) ? 'ITEM' : '', isset($pair[1]) ? 'QTY' : '', isset($pair[1]) ? 'UNIT' : ''], ['template-header', 'template-header', 'template-header', 'default', 'template-header', 'template-header', 'template-header'], 24);
+                self::packingHeadings($packing, $pair, $active, $part);
                 $usedHeight = 0;
 
                 while (isset($lists[0][$offsets[0]]) || isset($lists[1][$offsets[1]])) {
@@ -140,34 +139,77 @@ class PurchaseOrderWorkbook
                     }
 
                     $cells = [];
+                    $styles = [];
 
                     foreach ([$left, $right] as $index => $line) {
+                        if ($index && ! $active[1]) {
+                            break;
+                        }
+
                         if ($index) {
                             $cells[] = '';
+                            $styles[] = 'default';
                         }
 
                         array_push($cells, ...($line ? [$line['product'], SimpleXlsx::formula($line['reference'], $line['qty']), $line['unit']] : ['', '', '']));
+                        array_push($styles, ...($line ? ['cell', 'quantity', 'unit'] : ['default', 'default', 'default']));
 
                         if ($line) {
                             $offsets[$index]++;
                         }
                     }
 
-                    $packing->addRow($cells, ['cell', 'quantity', 'cell', 'default', 'cell', 'quantity', 'cell'], $height);
+                    $packing->addRow($cells, $styles, $height);
                     $usedHeight += $height;
                 }
 
-                $padding = max(18, 460 - $usedHeight);
-
-                while ($padding > 0) {
-                    $height = min(300, $padding);
-                    $packing->addRow([], 'default', $height);
-                    $padding -= $height;
-                }
             } while (isset($lists[0][$offsets[0]]) || isset($lists[1][$offsets[1]]));
         }
 
         return $picking->addSheet($packing)->addSheet($details);
+    }
+
+    /**
+     * @param  list<array{name: string, date: string}>  $pair
+     * @param  array{bool, bool}  $active
+     */
+    private static function packingHeadings(SimpleXlsx $sheet, array $pair, array $active, int $part): void
+    {
+        $nameHeight = max(40, ...array_map(fn (array $purchase): int => (int) ceil(mb_strlen($purchase['name']) / 40) * 14, $pair));
+        $heights = [24, $nameHeight, 22, 24];
+        $rowStyles = ['template-title', 'bold', 'default', 'template-header'];
+
+        foreach ($heights as $index => $height) {
+            $row = $sheet->rowCount() + 1;
+            $cells = [];
+            $styles = [];
+
+            foreach ($active as $side => $hasItems) {
+                if ($side && ! $hasItems) {
+                    break;
+                }
+
+                if ($side) {
+                    $cells[] = '';
+                    $styles[] = 'default';
+                }
+
+                $values = $hasItems ? match ($index) {
+                    0 => ['PACKING LIST', '', ''],
+                    1 => [$pair[$side]['name'].($part > 1 ? ' (continued)' : ''), '', ''],
+                    2 => [$pair[$side]['date'], '', ''],
+                    3 => ['ITEM', 'QTY', 'UNIT'],
+                } : ['', '', ''];
+                array_push($cells, ...$values);
+                array_push($styles, ...array_fill(0, 3, $hasItems ? $rowStyles[$index] : 'default'));
+
+                if ($hasItems && $index < 3) {
+                    $sheet->merge(($side ? 'E' : 'A').$row.':'.($side ? 'G' : 'C').$row);
+                }
+            }
+
+            $sheet->addRow($cells, $styles, $height);
+        }
     }
 
     /**
@@ -196,7 +238,7 @@ class PurchaseOrderWorkbook
                 $sheet->addRow([
                     $item->particulars, (float) $item->quantity, $item->unit, (float) $item->estimated_unit_price,
                     SimpleXlsx::formula('ROUND(B'.$row.'*D'.$row.',2)', $item->estimatedTotalCents() / 100), $item->remarks ?? '',
-                ], ['cell', 'quantity', 'cell', 'money', 'money', 'cell'], max(28, (int) ceil(mb_strlen($item->particulars) / 30) * 14, (int) ceil(mb_strlen($item->remarks ?? '') / 30) * 14));
+                ], ['cell', 'quantity', 'unit', 'money', 'money', 'cell'], max(28, (int) ceil(mb_strlen($item->particulars) / 30) * 14, (int) ceil(mb_strlen($item->remarks ?? '') / 30) * 14));
                 $purchase['lines'][] = [
                     'product' => $item->particulars, 'unit' => $item->unit,
                     'thousandths' => (int) round((float) $item->quantity * 1000),

@@ -28,9 +28,10 @@ class SimpleXlsx
         'total-right' => [1, 0, 1, 'right'],
         'template-title' => [2, 0, 0, 'center'],
         'template-header' => [1, 3, 1, 'center'],
-        'quantity' => [0, 0, 1, 'right', 164],
+        'quantity' => [0, 0, 1, 'center'],
         'money' => [0, 0, 1, 'right', 165],
         'money-total' => [1, 0, 1, 'right', 165],
+        'unit' => [0, 0, 1, 'left'],
     ];
 
     protected const XML_DECLARATION = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'."\n";
@@ -65,6 +66,8 @@ class SimpleXlsx
     protected int $repeatRows = 0;
 
     protected string $orientation = 'portrait';
+
+    protected ?int $printScale = null;
 
     /**
      * @param  list<int|float>  $columnWidths  Widths in characters, starting at column A.
@@ -125,12 +128,13 @@ class SimpleXlsx
         return $this;
     }
 
-    public function forPrint(int $paperSize = 9, bool $singlePage = false, int $repeatRows = 0, string $orientation = 'portrait'): static
+    public function forPrint(int $paperSize = 9, bool $singlePage = false, int $repeatRows = 0, string $orientation = 'portrait', ?int $scale = null): static
     {
         $this->paperSize = $paperSize;
         $this->singlePage = $singlePage;
         $this->repeatRows = $repeatRows;
         $this->orientation = $orientation;
+        $this->printScale = $scale;
 
         return $this;
     }
@@ -265,15 +269,15 @@ class SimpleXlsx
         $edge = fn (string $side) => '<'.$side.' style="thin"><color rgb="FF8C9A8F"/></'.$side.'>';
         $cellFormats = '';
 
-        foreach (self::STYLES as $style) {
+        foreach (self::STYLES as $name => $style) {
             [$font, $fill, $border, $alignment] = $style;
             $cellFormats .= '<xf numFmtId="'.($style[4] ?? 0).'" fontId="'.$font.'" fillId="'.$fill.'" borderId="'.$border.'" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">'
-                .'<alignment vertical="center" wrapText="1"'.($alignment ? ' horizontal="'.$alignment.'"' : '').'/></xf>';
+                .'<alignment vertical="center" wrapText="1"'.($alignment ? ' horizontal="'.$alignment.'"' : '').($name === 'unit' ? ' indent="1"' : '').'/></xf>';
         }
 
         return self::XML_DECLARATION
             .'<styleSheet xmlns="'.self::SPREADSHEET_NAMESPACE.'">'
-            .'<numFmts count="2"><numFmt numFmtId="164" formatCode="0.###"/><numFmt numFmtId="165" formatCode="#,##0.00"/></numFmts>'
+            .'<numFmts count="1"><numFmt numFmtId="165" formatCode="&quot;&#8369;&quot;#,##0.00"/></numFmts>'
             .'<fonts count="3">'
             .'<font><sz val="11"/><name val="Calibri"/></font>'
             .'<font><b/><sz val="11"/><name val="Calibri"/></font>'
@@ -332,12 +336,14 @@ class SimpleXlsx
 
         return self::XML_DECLARATION
             .'<worksheet xmlns="'.self::SPREADSHEET_NAMESPACE.'">'
-            .'<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>'
+            .'<sheetPr><pageSetUpPr fitToPage="'.($this->printScale === null ? 1 : 0).'"/></sheetPr>'
             .($columns === '' ? '' : '<cols>'.$columns.'</cols>')
             .'<sheetData>'.$rows.'</sheetData>'
             .($merges ? '<mergeCells count="'.count($this->merges).'">'.$merges.'</mergeCells>' : '')
             .'<pageMargins left="0.5" right="0.5" top="0.75" bottom="0.75" header="0.3" footer="0.3"/>'
-            .'<pageSetup orientation="'.$this->escape($this->orientation).'" fitToWidth="1" fitToHeight="'.($this->singlePage ? 1 : 0).'"'.($this->paperSize !== null ? ' paperSize="'.$this->paperSize.'"' : '').'/>'
+            .'<pageSetup orientation="'.$this->escape($this->orientation).'"'
+            .($this->printScale === null ? ' fitToWidth="1" fitToHeight="'.($this->singlePage ? 1 : 0).'"' : ' scale="'.$this->printScale.'"')
+            .($this->paperSize !== null ? ' paperSize="'.$this->paperSize.'"' : '').'/>'
             .($breaks ? '<rowBreaks count="'.count($this->pageBreaks).'" manualBreakCount="'.count($this->pageBreaks).'">'.$breaks.'</rowBreaks>' : '')
             .'</worksheet>';
     }
