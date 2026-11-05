@@ -107,72 +107,76 @@ class CustomerOrderWorkbook
 
         $packing = (new SimpleXlsx('Packing lists', [25, 9, 15, 3, 25, 9, 15]))->forPrint(scale: 90);
 
-        foreach (array_chunk($customers, 2) as $pair) {
+        $pending = array_values(array_filter(array_map(fn (array $customer): array => [
+            ...$customer, 'offset' => 0, 'part' => 1,
+        ], $customers), fn (array $customer): bool => isset($customerReferences[$customer['id']])));
+
+        while ($pending !== []) {
+            $pair = array_splice($pending, 0, 2);
             $lists = array_map(fn (array $customer): array => $customerReferences[$customer['id']] ?? [], $pair);
-            $offsets = [0, 0];
-            $part = 0;
+            $offsets = [$pair[0]['offset'], $pair[1]['offset'] ?? 0];
 
-            do {
-                $active = [isset($lists[0][$offsets[0]]), isset($lists[1][$offsets[1]])];
+            if ($packing->rowCount()) {
+                $packing->addRow([], 'default', 12);
+                $packing->breakBeforeRow($packing->rowCount() + 1);
+            }
 
-                if (! $active[0] && ! $active[1]) {
+            self::packingHeadings($packing, $pair, [true, isset($pair[1])]);
+            $usedHeight = 0;
+
+            while (isset($lists[0][$offsets[0]]) || isset($lists[1][$offsets[1]])) {
+                $left = $lists[0][$offsets[0]] ?? null;
+                $right = $lists[1][$offsets[1]] ?? null;
+                $height = max($left ? self::lineHeight($left) : 22, $right ? self::lineHeight($right) : 22);
+
+                if ($usedHeight > 0 && $usedHeight + $height > 460) {
                     break;
                 }
 
-                if ($packing->rowCount()) {
-                    $packing->addRow([], 'default', 12);
-                    $packing->breakBeforeRow($packing->rowCount() + 1);
-                }
+                $cells = [];
+                $styles = [];
 
-                $part++;
-                self::packingHeadings($packing, $pair, $active, $part);
-                $usedHeight = 0;
-
-                while (isset($lists[0][$offsets[0]]) || isset($lists[1][$offsets[1]])) {
-                    $left = $lists[0][$offsets[0]] ?? null;
-                    $right = $lists[1][$offsets[1]] ?? null;
-                    $height = max($left ? self::lineHeight($left) : 22, $right ? self::lineHeight($right) : 22);
-
-                    if ($usedHeight > 0 && $usedHeight + $height > 460) {
+                foreach ([$left, $right] as $index => $line) {
+                    if ($index && ! isset($pair[1])) {
                         break;
                     }
 
-                    $cells = [];
-                    $styles = [];
-
-                    foreach ([$left, $right] as $index => $line) {
-                        if ($index && ! $active[1]) {
-                            break;
-                        }
-
-                        if ($index) {
-                            $cells[] = '';
-                            $styles[] = 'default';
-                        }
-
-                        array_push($cells, ...($line ? [$line['product'], SimpleXlsx::formula($line['reference'], $line['qty']), $line['unit']] : ['', '', '']));
-                        array_push($styles, ...($line ? ['cell', 'quantity', 'unit'] : ['default', 'default', 'default']));
-
-                        if ($line) {
-                            $offsets[$index]++;
-                        }
+                    if ($index) {
+                        $cells[] = '';
+                        $styles[] = 'default';
                     }
 
-                    $packing->addRow($cells, $styles, $height);
-                    $usedHeight += $height;
+                    array_push($cells, ...($line ? [$line['product'], SimpleXlsx::formula($line['reference'], $line['qty']), $line['unit']] : ['', '', '']));
+                    array_push($styles, ...($line ? ['cell', 'quantity', 'unit'] : ['default', 'default', 'default']));
+
+                    if ($line) {
+                        $offsets[$index]++;
+                    }
                 }
 
-            } while (isset($lists[0][$offsets[0]]) || isset($lists[1][$offsets[1]]));
+                $packing->addRow($cells, $styles, $height);
+                $usedHeight += $height;
+            }
+
+            $continuations = [];
+
+            foreach ($pair as $side => $customer) {
+                if (isset($lists[$side][$offsets[$side]])) {
+                    $continuations[] = [...$customer, 'offset' => $offsets[$side], 'part' => $customer['part'] + 1];
+                }
+            }
+
+            $pending = [...$continuations, ...$pending];
         }
 
         return $workbook->addSheet($packing);
     }
 
     /**
-     * @param  list<array{name: string, date: string}>  $pair
+     * @param  list<array{name: string, date: string, part: int}>  $pair
      * @param  array{bool, bool}  $active
      */
-    private static function packingHeadings(SimpleXlsx $sheet, array $pair, array $active, int $part): void
+    private static function packingHeadings(SimpleXlsx $sheet, array $pair, array $active): void
     {
         $nameHeight = max(40, ...array_map(fn (array $customer): int => (int) ceil(mb_strlen($customer['name']) / 40) * 14, $pair));
         $heights = [24, $nameHeight, 22, 24];
@@ -195,7 +199,7 @@ class CustomerOrderWorkbook
 
                 $values = $hasItems ? match ($index) {
                     0 => ['PACKING LIST', '', ''],
-                    1 => [$pair[$side]['name'].($part > 1 ? ' (continued)' : ''), '', ''],
+                    1 => [$pair[$side]['name'].($pair[$side]['part'] > 1 ? ' (continued)' : ''), '', ''],
                     2 => [$pair[$side]['date'], '', ''],
                     3 => ['ITEM', 'QTY', 'UNIT'],
                 } : ['', '', ''];

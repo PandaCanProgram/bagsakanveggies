@@ -242,6 +242,64 @@ class CustomerOrderExportTest extends TestCase
         $this->assertStringContainsString('Okra', $parts['xl/worksheets/sheet2.xml']);
     }
 
+    public function test_a_right_hand_continuation_moves_left_and_shares_the_next_page_with_the_next_customer(): void
+    {
+        $short = $this->product('Short item');
+        $this->order('First hotel', '09000000001', [[$short, 'kg', 1, 100]]);
+        $lines = [];
+        for ($index = 0; $index < 35; $index++) {
+            $lines[] = [$this->product('Hotel item '.str_pad((string) $index, 2, '0', STR_PAD_LEFT)), 'kg', 1, 100];
+        }
+        $this->order('Long hotel', '09000000002', $lines);
+        $this->order('Next hotel', '09000000003', [[$short, 'kg', 2, 100]]);
+        $parts = $this->exportParts();
+        $packing = new SimpleXMLElement($parts['xl/worksheets/sheet4.xml']);
+        $this->assertCount(1, $packing->rowBreaks->brk);
+        $secondPage = (int) $packing->rowBreaks->brk[0]['id'];
+        $this->assertSame('PACKING LIST', (string) $packing->sheetData->row[$secondPage]->c[0]->is->t);
+        $this->assertSame('Long hotel (continued)', (string) $packing->sheetData->row[$secondPage + 1]->c[0]->is->t);
+        $this->assertSame('Next hotel', (string) $packing->sheetData->row[$secondPage + 1]->c[4]->is->t);
+        $items = [];
+        foreach ($packing->sheetData->row as $row) {
+            foreach ($row->c as $cell) {
+                $value = (string) ($cell->is->t ?? '');
+                if (str_starts_with($value, 'Hotel item ')) {
+                    $items[] = $value;
+                }
+            }
+        }
+        $this->assertCount(35, $items);
+        $this->assertCount(35, array_unique($items));
+    }
+
+    public function test_both_long_lists_keep_their_items_when_one_finishes_before_the_other(): void
+    {
+        foreach ([35, 40, 1] as $customer => $count) {
+            $lines = [];
+            for ($index = 0; $index < $count; $index++) {
+                $lines[] = [$this->product('C'.$customer.' item '.str_pad((string) $index, 2, '0', STR_PAD_LEFT)), 'kg', 1, 100];
+            }
+            $this->order('Hotel '.$customer, '0900000000'.$customer, $lines);
+        }
+        $parts = $this->exportParts();
+        $packing = new SimpleXMLElement($parts['xl/worksheets/sheet4.xml']);
+        $this->assertCount(2, $packing->rowBreaks->brk);
+        $thirdPage = (int) $packing->rowBreaks->brk[1]['id'];
+        $this->assertSame('Hotel 1 (continued)', (string) $packing->sheetData->row[$thirdPage + 1]->c[0]->is->t);
+        $this->assertSame('Hotel 2', (string) $packing->sheetData->row[$thirdPage + 1]->c[4]->is->t);
+        $items = [];
+        foreach ($packing->sheetData->row as $row) {
+            foreach ($row->c as $cell) {
+                $value = (string) ($cell->is->t ?? '');
+                if (preg_match('/^C\d item /', $value)) {
+                    $items[] = $value;
+                }
+            }
+        }
+        $this->assertCount(76, $items);
+        $this->assertCount(76, array_unique($items));
+    }
+
     public function test_long_customer_lists_continue_without_losing_items_and_keep_text_safe(): void
     {
         $lines = [];
