@@ -20,10 +20,10 @@
                 </button>
             </div>
             <p id="person-export-description" class="a-muted">
-                {{ $summary->day->format('F j, Y') }}. Select whose orders to include in the Excel file.
+                {{ $summary->day->format('F j, Y') }}. Select whose orders to include in the summary, picking list and packing lists.
             </p>
 
-            <form method="GET" action="{{ route('admin.orders-per-person.export') }}"
+            <form method="GET" action="{{ route($exportRoute) }}"
                   @submit="selected.length ? $refs.dialog.close() : $event.preventDefault()">
                 <input type="hidden" name="date" value="{{ $date }}">
                 <input type="hidden" name="selection" value="1">

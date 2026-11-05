@@ -65,7 +65,10 @@
                         Print
                     </button>
                     @if ($perPerson)
-                        @include('admin.dashboard.partials.export-people')
+                        @include('admin.dashboard.partials.export-people', [
+                            'summary' => $exportSummary,
+                            'exportRoute' => 'admin.orders-per-person.export',
+                        ])
                     @else
                         <a href="{{ route('admin.order-summary.export', ['date' => $date]) }}" class="a-btn a-btn-primary">
                             <x-admin.icon name="download" :size="18" />

@@ -7,6 +7,7 @@ use App\Models\OrderItem;
 use App\Models\Product;
 use App\Support\Format;
 use Carbon\CarbonImmutable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
@@ -39,13 +40,16 @@ class DailyOrderSummary
 
     /**
      * Add up the orders placed on the given day, from midnight to midnight store time.
+     *
+     * @param  list<int>|null  $orderIds  Limit the summary to selected customers' orders.
      */
-    public static function for(CarbonImmutable $day): self
+    public static function for(CarbonImmutable $day, ?array $orderIds = null): self
     {
         $start = $day->setTimezone(self::TIMEZONE)->startOfDay();
 
         $orders = Order::query()
             ->placedOn($start)
+            ->when($orderIds !== null, fn (Builder $query): Builder => $query->whereIn('id', $orderIds))
             ->with('items.product:id,name')
             ->get();
 

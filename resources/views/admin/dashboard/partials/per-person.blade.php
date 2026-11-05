@@ -25,7 +25,18 @@
                 </div>
                 <ul class="a-person-orders">
                     @foreach ($person['orders'] as $order)
-                        <li>Order #{{ $order['id'] }} · {{ $order['time'] }}</li>
+                        <li>
+                            <span>Order #{{ $order['id'] }} · {{ $order['time'] }}</span>
+                            <form method="POST" action="{{ route('admin.orders.destroy', $order['id']) }}" class="a-order-cancel"
+                                  onsubmit="return confirm(@js('Cancel order #'.$order['id'].' for '.$person['name'].'? This permanently deletes this order and its items. This cannot be undone.'))">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="a-btn a-btn-secondary a-btn-danger-text" aria-label="Cancel order #{{ $order['id'] }} for {{ $person['name'] }}">
+                                    <x-admin.icon name="trash" :size="16" />
+                                    Cancel order
+                                </button>
+                            </form>
+                        </li>
                     @endforeach
                 </ul>
             </header>

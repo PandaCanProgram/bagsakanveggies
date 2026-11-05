@@ -26,6 +26,7 @@ class PerPersonOrderSummary
 
     /**
      * Group the orders placed on the given day, from midnight to midnight store time, by the person who placed them.
+     * Match both the name and phone number, ignoring capitalization, extra spaces and phone formatting.
      */
     public static function for(CarbonImmutable $day): self
     {
@@ -38,9 +39,11 @@ class PerPersonOrderSummary
             ->orderBy('id')
             ->get();
 
-        // A person is a CP/Viber number, so someone who checks out twice gets one packing list.
         $people = $orders
-            ->groupBy(fn (Order $order) => preg_replace('/\D/', '', $order->contact_number))
+            ->groupBy(fn (Order $order): string => json_encode([
+                Str::lower(Str::squish($order->full_name)),
+                preg_replace('/\D/', '', $order->contact_number),
+            ], JSON_THROW_ON_ERROR))
             ->map(fn (Collection $personOrders) => [
                 'name' => self::distinct($personOrders->pluck('full_name'))->implode(' / '),
                 'contact_number' => $personOrders->last()->contact_number,

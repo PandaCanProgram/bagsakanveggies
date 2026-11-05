@@ -1481,10 +1481,20 @@ td.a-col-updated { padding-top: 36px !important; }
 }
 
 .a-person-orders {
+  display: grid;
+  gap: var(--space-3);
   color: var(--color-muted-foreground);
   font-size: 14px;
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.a-person-orders li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2) var(--space-3);
 }
 
 /* The person's items sit flush inside their block */
@@ -1523,6 +1533,7 @@ td.a-col-updated { padding-top: 36px !important; }
   .a-segmented-link { flex: 1; min-height: var(--control-height); padding: 0 var(--space-2); }
   .a-person-head { padding: var(--space-3); }
   .a-person-orders { text-align: left; }
+  .a-person-orders li { justify-content: flex-start; }
   .a-day-total { padding: var(--space-3); }
 }
 
@@ -1651,6 +1662,7 @@ td.a-col-updated { padding-top: 36px !important; }
   .a-flash,
   .a-page-head,
   .a-summary-toolbar,
+  .a-order-cancel,
   .a-export-dialog,
   .a-price-sheet-toolbar,
   .a-day-tag { display: none !important; }
@@ -1669,6 +1681,7 @@ td.a-col-updated { padding-top: 36px !important; }
   /* Each person's list stays on one page where it fits, ready to cut out and pack with */
   .a-person { border: 0; border-radius: 0; overflow: visible; break-inside: avoid; }
   .a-person-head { padding: 0 0 var(--space-2); }
+  .a-person-orders { gap: 0; }
   .a-person-details a { text-decoration: none; }
   /* Price list: 3 items per row, like the client's printed price sheet; an item never splits across pages */
   .a-price-sheet-card { overflow: visible; }

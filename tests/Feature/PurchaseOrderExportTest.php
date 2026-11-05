@@ -34,70 +34,71 @@ class PurchaseOrderExportTest extends TestCase
     }
 
     #[RequiresPhpExtension('zip')]
-    public function test_selected_purchases_keep_each_admin_estimate_and_exclude_unselected_or_other_dates(): void
+    public function test_purchase_export_contains_only_details_for_selected_purchases(): void
     {
-        $purchaser = User::factory()->purchaser()->create();
-        $first = $this->purchase($purchaser, 'Carrots first trip', '100.00');
-        $second = $this->purchase($purchaser, 'Carrots second trip', '120.00');
+        $buyer = User::factory()->purchaser()->create(['name' => 'Buyer One']);
+        $first = $this->purchase($buyer, 'Carrots first trip', '100.00');
+        $second = $this->purchase($buyer, 'Carrots second trip', '120.00');
         $excluded = $this->purchase(User::factory()->purchaser()->create(), 'Excluded purchase', '999.00');
-        $this->actingAs(User::factory()->create(['is_admin' => true]), 'web');
-        $response = $this->get(route('admin.purchase-orders.export', [
-            'date' => '2026-11-02', 'mode' => 'purchasers', 'selection' => 1, 'purchases' => [$first->id, $second->id],
-        ]))->assertDownload('purchases-per-purchaser-2026-11-02.xlsx')->assertHeader('Content-Type', SimpleXlsx::MIME_TYPE);
-        $parts = $this->parts($response->streamedContent());
-        $sheet = new SimpleXMLElement($parts['xl/worksheets/sheet1.xml']);
-        $this->assertStringContainsString('Carrots first trip', $parts['xl/worksheets/sheet1.xml']);
-        $this->assertStringContainsString('Carrots second trip', $parts['xl/worksheets/sheet1.xml']);
-        $this->assertStringNotContainsString($excluded->number(), implode('', $parts));
-        $prices = [];
-        foreach ($sheet->sheetData->row as $row) {
-            if (isset($row->c[3]->v) && ! isset($row->c[3]->f)) {
-                $prices[] = (float) $row->c[3]->v;
-            }
-        }
-        $this->assertSame([100.0, 120.0], $prices);
-        $lastRow = $sheet->sheetData->row[count($sheet->sheetData->row) - 1];
-        $this->assertSame(440.0, (float) $lastRow->c[4]->v);
-        $this->assertSame('portrait', (string) $sheet->pageSetup['orientation']);
-    }
-
-    #[RequiresPhpExtension('zip')]
-    public function test_all_purchase_export_includes_only_the_filtered_date_and_preserves_different_prices(): void
-    {
-        $first = $this->purchase(User::factory()->purchaser()->create(), 'Same item', '100.00');
-        $second = $this->purchase(User::factory()->purchaser()->create(), 'Same item', '150.00');
-        $old = $this->purchase($first->purchaser, 'Other day only', '999.00', '2026-11-01');
-        $this->actingAs(User::factory()->create(['is_admin' => true]), 'web');
-        $response = $this->get(route('admin.purchase-orders.export', ['date' => '2026-11-02', 'mode' => 'all']))
-            ->assertDownload('all-purchases-2026-11-02.xlsx');
-        $parts = $this->parts($response->streamedContent());
-        $this->assertStringContainsString($first->number(), implode('', $parts));
-        $this->assertStringContainsString($second->number(), implode('', $parts));
-        $this->assertStringNotContainsString($old->number(), implode('', $parts));
-        $this->assertStringContainsString('<v>100</v>', $parts['xl/worksheets/sheet1.xml']);
-        $this->assertStringContainsString('<v>150</v>', $parts['xl/worksheets/sheet1.xml']);
-        $this->assertStringContainsString('<v>500</v>', $parts['xl/worksheets/sheet1.xml']);
-        $summary = new SimpleXMLElement($parts['xl/worksheets/sheet2.xml']);
-        $this->assertSame(4.0, (float) $summary->sheetData->row[4]->c[1]->v);
-        $this->assertCount(5, $summary->sheetData->row);
-    }
-
-    #[RequiresPhpExtension('zip')]
-    public function test_per_purchaser_export_contains_all_three_forms_and_keeps_deleted_account_history(): void
-    {
-        $first = $this->purchase(User::factory()->purchaser()->create(['name' => 'Buyer One']), 'Carrots', '100.00');
-        $second = $this->purchase(User::factory()->purchaser()->create(['name' => 'Buyer Two']), 'Cabbage', '80.00');
-        $second->purchaser->delete();
-        $response = $this->actingAs(User::factory()->create(['is_admin' => true]), 'web')->get(route('admin.purchase-orders.export', [
-            'all_dates' => 1, 'mode' => 'purchasers', 'selection' => 1, 'purchases' => [$first->id, $second->id],
-        ]))->assertOk();
+        $buyer->delete();
+        $response = $this->actingAs(User::factory()->create(['is_admin' => true]), 'web')
+            ->get(route('admin.purchase-orders.export', [
+                'date' => '2026-11-02', 'mode' => 'purchasers', 'selection' => 1, 'purchases' => [$first->id, $second->id],
+            ]))->assertDownload('purchases-per-purchaser-2026-11-02.xlsx');
         $parts = $this->parts($response->streamedContent());
         $book = new SimpleXMLElement($parts['xl/workbook.xml']);
-        $this->assertSame(['Unified picking list', 'Packing summary', 'Packing lists', 'Purchase details'], array_map(fn ($sheet) => (string) $sheet['name'], iterator_to_array($book->sheets->sheet, false)));
-        foreach ([2, 3, 4] as $number) {
-            $this->assertStringContainsString('Buyer One / '.$first->number(), $parts['xl/worksheets/sheet'.$number.'.xml']);
-            $this->assertStringContainsString('Buyer Two / '.$second->number(), $parts['xl/worksheets/sheet'.$number.'.xml']);
+        $this->assertCount(1, $book->sheets->sheet);
+        $this->assertSame('Purchase details', (string) $book->sheets->sheet[0]['name']);
+        $xml = $parts['xl/worksheets/sheet1.xml'];
+        $this->assertStringContainsString('Buyer One', $xml);
+        $this->assertStringContainsString('Carrots first trip', $xml);
+        $this->assertStringContainsString('Carrots second trip', $xml);
+        $this->assertStringNotContainsString($excluded->number(), $xml);
+        $this->assertStringNotContainsString('<v>777', $xml);
+        $sheet = new SimpleXMLElement($xml);
+        $rows = $sheet->sheetData->row;
+        $this->assertSame(440.0, (float) $rows[count($rows) - 1]->c[4]->v);
+        $this->assertSame('landscape', (string) $sheet->pageSetup['orientation']);
+    }
+
+    #[RequiresPhpExtension('zip')]
+    public function test_all_purchase_export_filters_dates_and_preserves_estimates_and_remarks(): void
+    {
+        $first = $this->purchase(User::factory()->purchaser()->create(), '=HYPERLINK("bad")', '100.00');
+        $first->items()->update(['remarks' => 'Keep chilled & covered', 'unit' => 'bag']);
+        $second = $this->purchase(User::factory()->purchaser()->create(), 'Same item', '150.00');
+        $old = $this->purchase($first->purchaser, 'Old item', '90.00', '2026-11-01');
+        $response = $this->actingAs(User::factory()->create(['is_admin' => true]), 'web')
+            ->get(route('admin.purchase-orders.export', ['date' => '2026-11-02', 'mode' => 'all']))
+            ->assertDownload('all-purchases-2026-11-02.xlsx')->assertHeader('Content-Type', SimpleXlsx::MIME_TYPE);
+        $parts = $this->parts($response->streamedContent());
+        $xml = $parts['xl/worksheets/sheet1.xml'];
+        $this->assertStringContainsString($first->number(), $xml);
+        $this->assertStringContainsString($second->number(), $xml);
+        $this->assertStringNotContainsString($old->number(), $xml);
+        $this->assertStringContainsString('Keep chilled &amp; covered', $xml);
+        $this->assertStringContainsString('bag', $xml);
+        $sheet = new SimpleXMLElement($xml);
+        $this->assertSame('inlineStr', (string) $sheet->sheetData->row[6]->c[0]['t']);
+        $this->assertSame('=HYPERLINK("bad")', (string) $sheet->sheetData->row[6]->c[0]->is->t);
+        $this->assertSame(500.0, (float) $sheet->sheetData->row[count($sheet->sheetData->row) - 1]->c[4]->v);
+        foreach ($parts as $part) {
+            $this->assertTrue((new DOMDocument)->loadXML($part));
         }
+        $this->assertDoesNotMatchRegularExpression('/[\\x{1F300}-\\x{1FAFF}]/u', implode('', $parts));
+    }
+
+    #[RequiresPhpExtension('zip')]
+    public function test_purchase_totals_preserve_individually_rounded_line_costs(): void
+    {
+        $buyer = User::factory()->purchaser()->create();
+        $first = $this->purchase($buyer, 'Small item', '0.01');
+        $second = $this->purchase($buyer, 'Small item', '0.01');
+        $first->items()->update(['quantity' => '0.500']);
+        $second->items()->update(['quantity' => '0.500']);
+        $parts = $this->parts(PurchaseOrderWorkbook::build(PurchaseOrder::with(['purchaser', 'items'])->get(), false, 'November 2, 2026')->toString());
+        $sheet = new SimpleXMLElement($parts['xl/worksheets/sheet1.xml']);
+        $this->assertSame(0.02, (float) $sheet->sheetData->row[count($sheet->sheetData->row) - 1]->c[4]->v);
     }
 
     public function test_invalid_empty_duplicate_and_other_date_selections_are_rejected(): void
@@ -132,139 +133,6 @@ class PurchaseOrderExportTest extends TestCase
         $this->assertStringStartsWith($first->number(), $groups[0]['purchases'][0]['label']);
         $this->assertStringStartsWith($second->number(), $groups[0]['purchases'][1]['label']);
         $this->assertStringStartsWith($tomorrow->number(), $groups[0]['purchases'][2]['label']);
-    }
-
-    #[RequiresPhpExtension('zip')]
-    public function test_picking_totals_preserve_the_admins_individually_rounded_line_costs(): void
-    {
-        $buyer = User::factory()->purchaser()->create();
-        $first = $this->purchase($buyer, 'Small item', '0.01');
-        $second = $this->purchase($buyer, 'Small item', '0.01');
-        $first->items()->update(['quantity' => '0.500']);
-        $second->items()->update(['quantity' => '0.500']);
-        $parts = $this->parts(PurchaseOrderWorkbook::build(PurchaseOrder::with(['purchaser', 'items'])->get(), false, 'November 2, 2026')->toString());
-        $picking = new SimpleXMLElement($parts['xl/worksheets/sheet1.xml']);
-        $this->assertSame(1.0, (float) $picking->sheetData->row[4]->c[1]->v);
-        $this->assertSame(0.01, (float) $picking->sheetData->row[4]->c[3]->v);
-        $this->assertSame(0.02, (float) $picking->sheetData->row[4]->c[4]->v);
-        $this->assertSame(0.02, (float) $picking->sheetData->row[5]->c[4]->v);
-        $this->assertStringContainsString('Purchase details', (string) $picking->sheetData->row[4]->c[4]->f);
-    }
-
-    #[RequiresPhpExtension('zip')]
-    public function test_template_keeps_bags_separate_from_kilos_and_preserves_remarks_and_safe_item_text(): void
-    {
-        $order = $this->purchase(User::factory()->purchaser()->create(['name' => '=Buyer & One']), '=HYPERLINK("bad")', '400.00');
-        $order->items()->update(['unit' => 'bag', 'remarks' => 'Keep chilled & covered']);
-        PurchaseOrderItem::factory()->create(['purchase_order_id' => $order->id, 'particulars' => '=HYPERLINK("bad")', 'unit' => 'kg', 'quantity' => '1.000', 'estimated_unit_price' => '200.00']);
-        $parts = $this->parts(PurchaseOrderWorkbook::build(PurchaseOrder::with(['purchaser', 'items'])->get(), false, 'November 2, 2026')->toString());
-        $picking = new SimpleXMLElement($parts['xl/worksheets/sheet1.xml']);
-        $this->assertSame('inlineStr', (string) $picking->sheetData->row[4]->c[0]['t']);
-        $this->assertSame('=HYPERLINK("bad")', (string) $picking->sheetData->row[4]->c[0]->is->t);
-        $this->assertSame('bag', (string) $picking->sheetData->row[4]->c[2]->is->t);
-        $this->assertSame('kg', (string) $picking->sheetData->row[5]->c[2]->is->t);
-        $this->assertSame(1000.0, (float) $picking->sheetData->row[6]->c[4]->v);
-        $this->assertSame('9', (string) $picking->pageSetup['paperSize']);
-        $this->assertStringContainsString('Keep chilled &amp; covered', $parts['xl/worksheets/sheet4.xml']);
-        $this->assertDoesNotMatchRegularExpression('/[\x{1F300}-\x{1FAFF}]/u', implode('', $parts));
-        foreach ($parts as $xml) {
-            $this->assertTrue((new DOMDocument)->loadXML($xml));
-        }
-    }
-
-    #[RequiresPhpExtension('zip')]
-    public function test_many_purchases_use_readable_summary_sheets_and_two_packing_lists_per_page(): void
-    {
-        $buyer = User::factory()->purchaser()->create();
-        for ($index = 0; $index < 6; $index++) {
-            $this->purchase($buyer, 'Carrots', '100.00');
-        }
-        $parts = $this->parts(PurchaseOrderWorkbook::build(PurchaseOrder::with(['purchaser', 'items'])->get(), true, 'November 2, 2026')->toString());
-        $book = new SimpleXMLElement($parts['xl/workbook.xml']);
-        $this->assertCount(5, $book->sheets->sheet);
-        $this->assertSame('Packing summary 2', (string) $book->sheets->sheet[2]['name']);
-        $picking = new SimpleXMLElement($parts['xl/worksheets/sheet1.xml']);
-        $this->assertSame(12.0, (float) $picking->sheetData->row[4]->c[1]->v);
-        $this->assertSame(1200.0, (float) $picking->sheetData->row[5]->c[4]->v);
-        $packing = new SimpleXMLElement($parts['xl/worksheets/sheet4.xml']);
-        $this->assertCount(2, $packing->rowBreaks->brk);
-        $this->assertSame('0', (string) $packing->sheetPr->pageSetUpPr['fitToPage']);
-        $this->assertSame('90', (string) $packing->pageSetup['scale']);
-        foreach ($packing->sheetData->row as $row) {
-            $this->assertLessThanOrEqual(409.5, (float) $row['ht']);
-        }
-    }
-
-    #[RequiresPhpExtension('zip')]
-    public function test_odd_packing_lists_are_compact_and_do_not_draw_an_empty_second_table(): void
-    {
-        $buyer = User::factory()->purchaser()->create();
-        $first = $this->purchase($buyer, 'Carrots', '100.00');
-        PurchaseOrderItem::factory()->count(2)->create(['purchase_order_id' => $first->id]);
-        $this->purchase($buyer, 'Cabbage', '80.00');
-        $last = $this->purchase($buyer, 'Tomatoes', '60.00');
-        $parts = $this->parts(PurchaseOrderWorkbook::build(PurchaseOrder::with(['purchaser', 'items'])->get(), true, 'November 3, 2026')->toString());
-        $packing = new SimpleXMLElement($parts['xl/worksheets/sheet3.xml']);
-        $styles = new SimpleXMLElement($parts['xl/styles.xml']);
-        $this->assertCount(1, $packing->rowBreaks->brk);
-        $lastPage = (int) $packing->rowBreaks->brk['id'] + 1;
-
-        foreach ($packing->sheetData->row as $row) {
-            if (count($row->c) === 0) {
-                $this->assertLessThanOrEqual(12, (float) $row['ht'], 'A blank spacer must not create a large worksheet gap.');
-            }
-
-            foreach ($row->c as $cell) {
-                if ((int) $row['r'] >= $lastPage) {
-                    $this->assertMatchesRegularExpression('/^[ABC]\d+$/', (string) $cell['r'], 'The final unmatched purchase must have no cells for a right-hand table.');
-                }
-            }
-        }
-
-        foreach ($packing->mergeCells->mergeCell as $merge) {
-            $range = (string) $merge['ref'];
-            if (preg_match('/^E(\d+):/', $range, $match)) {
-                $this->assertLessThan($lastPage, (int) $match[1]);
-            }
-        }
-
-        foreach ($packing->sheetData->row[5]->c as $cell) {
-            if (preg_match('/^[EFG]/', (string) $cell['r'])) {
-                $this->assertSame('0', (string) $styles->cellXfs->xf[(int) $cell['s']]['borderId'], 'A shorter list must stop drawing its table after its last item.');
-            }
-        }
-
-        $this->assertStringContainsString($last->number(), $parts['xl/worksheets/sheet3.xml']);
-        $summary = new SimpleXMLElement($parts['xl/worksheets/sheet2.xml']);
-        foreach ($summary->sheetData->row[4]->c as $cell) {
-            if (isset($cell->v)) {
-                $this->assertSame('center', (string) $styles->cellXfs->xf[(int) $cell['s']]->alignment['horizontal']);
-            }
-        }
-    }
-
-    #[RequiresPhpExtension('zip')]
-    public function test_long_purchase_lists_continue_without_losing_items(): void
-    {
-        $order = PurchaseOrder::factory()->create();
-        for ($index = 0; $index < 35; $index++) {
-            PurchaseOrderItem::factory()->create(['purchase_order_id' => $order->id, 'particulars' => 'Item '.$index.' '.str_repeat('long name ', 8)]);
-        }
-        $parts = $this->parts(PurchaseOrderWorkbook::build(PurchaseOrder::with(['purchaser', 'items'])->get(), false, 'All purchase dates')->toString());
-        $picking = new SimpleXMLElement($parts['xl/worksheets/sheet1.xml']);
-        $this->assertSame('0', (string) $picking->pageSetup['fitToHeight']);
-        $packing = new SimpleXMLElement($parts['xl/worksheets/sheet3.xml']);
-        $this->assertGreaterThan(0, count($packing->rowBreaks->brk));
-        $items = 0;
-        foreach ($packing->sheetData->row as $row) {
-            foreach ($row->c as $cell) {
-                $this->assertMatchesRegularExpression('/^[ABC]\d+$/', (string) $cell['r']);
-            }
-            if (isset($row->c[0]) && str_starts_with((string) $row->c[0]->is->t, 'Item ')) {
-                $items++;
-            }
-        }
-        $this->assertSame(35, $items);
     }
 
     private function purchase(User $buyer, string $name, string $price, string $date = '2026-11-02'): PurchaseOrder

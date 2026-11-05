@@ -297,7 +297,122 @@ class AdminDashboardTest extends TestCase
             ->assertDontSeeText('Total Qty Ordered');
     }
 
-    public function test_orders_from_the_same_number_are_packed_as_one_person(): void
+    public function test_only_the_per_person_view_has_a_cancel_button_for_each_individual_order(): void
+    {
+        $product = $this->makeProduct('Sayote');
+        $first = $this->placeOrder('2026-10-01 08:00', [[$product, '1 kg', 1]]);
+        $second = $this->placeOrder('2026-10-01 13:30', [[$product, '1 kg', 2]]);
+        $tomorrow = $this->placeOrder('2026-10-02 08:00', [[$product, '1 kg', 1]]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.home', ['date' => '2026-10-01', 'view' => 'people']))
+            ->assertOk()
+            ->assertSee('action="'.route('admin.orders.destroy', $first).'"', false)
+            ->assertSee('action="'.route('admin.orders.destroy', $second).'"', false)
+            ->assertDontSee('action="'.route('admin.orders.destroy', $tomorrow).'"', false)
+            ->assertSee('name="_method" value="DELETE"', false)
+            ->assertSeeText('Cancel order')
+            ->assertSee('onsubmit="return confirm(', false)
+            ->assertSee('This permanently deletes this order and its items. This cannot be undone.', false);
+
+        $this->assertSame(2, substr_count($response->getContent(), 'class="a-order-cancel"'));
+        $this->get(route('admin.home', ['date' => '2026-10-01']))
+            ->assertDontSeeText('Cancel order');
+    }
+
+    public function test_admin_cancels_only_the_selected_order_and_its_items_and_totals_are_recalculated(): void
+    {
+        $sayote = $this->makeProduct('Sayote');
+        $okra = $this->makeProduct('Okra');
+        $cancelled = $this->placeOrder('2026-10-01 08:00', [[$okra, '1 kg', 2], [$sayote, '1 kg', 1]]);
+        $repeat = $this->placeOrder('2026-10-01 13:30', [[$sayote, '1 kg', 3]]);
+        $other = $this->placeOrder('2026-10-01 14:00', [[$sayote, '1 kg', 1]], [
+            'full_name' => 'Maria Santos', 'contact_number' => '09281112222',
+        ]);
+        $nextDay = $this->placeOrder('2026-10-02 08:00', [[$sayote, '1 kg', 1]]);
+        $itemIds = $cancelled->items()->pluck('id');
+
+        $this->actingAs($this->admin)->delete(route('admin.orders.destroy', $cancelled))
+            ->assertRedirect(route('admin.home', ['date' => '2026-10-01', 'view' => 'people']))
+            ->assertSessionHas('status', "Order #{$cancelled->id} has been cancelled and permanently deleted.");
+
+        $this->assertDatabaseMissing('orders', ['id' => $cancelled->id]);
+        foreach ($itemIds as $itemId) {
+            $this->assertDatabaseMissing('order_items', ['id' => $itemId]);
+        }
+        foreach ([$repeat, $other, $nextDay] as $remaining) {
+            $this->assertDatabaseHas('orders', ['id' => $remaining->id]);
+            $this->assertDatabaseHas('order_items', ['order_id' => $remaining->id]);
+        }
+        $this->assertDatabaseCount('products', 2);
+        $this->get(route('admin.home', ['date' => '2026-10-01', 'view' => 'people']))
+            ->assertSeeText('Orders received: 2 from 2 people')
+            ->assertSeeText('Maria Santos')
+            ->assertDontSeeText('Okra')
+            ->assertSeeTextInOrder(['TOTAL FOR THE DAY', '₱400']);
+        $this->get(route('admin.home', ['date' => '2026-10-01']))
+            ->assertSeeText('Orders received: 2')
+            ->assertDontSeeText('Okra')
+            ->assertSeeText('4 kg');
+    }
+
+    public function test_cancelling_the_last_order_shows_the_empty_day_and_repeated_deletion_is_not_found(): void
+    {
+        $product = $this->makeProduct('Sayote');
+        $order = $this->placeOrder('2026-10-01 00:05', [[$product, '1 kg', 1]]);
+        $url = route('admin.orders.destroy', $order);
+
+        $this->actingAs($this->admin)->delete($url)
+            ->assertRedirect(route('admin.home', ['date' => '2026-10-01', 'view' => 'people']));
+        $this->get(route('admin.home', ['date' => '2026-10-01', 'view' => 'people']))
+            ->assertSeeText('No orders on this day')
+            ->assertDontSeeText('Cancel order')
+            ->assertDontSeeText('Download Excel');
+        $this->delete($url)->assertNotFound();
+        $this->assertDatabaseCount('orders', 0);
+        $this->assertDatabaseCount('order_items', 0);
+    }
+
+    public function test_guests_and_non_admin_accounts_cannot_cancel_orders(): void
+    {
+        $product = $this->makeProduct('Sayote');
+        $order = $this->placeOrder('2026-10-01 08:00', [[$product, '1 kg', 1]]);
+        $url = route('admin.orders.destroy', $order);
+
+        $this->delete($url)->assertRedirect(route('admin.login'));
+        $purchaser = User::factory()->purchaser()->create();
+        $this->actingAs($purchaser, 'purchaser')->delete($url)->assertRedirect(route('admin.login'));
+        $this->actingAs($purchaser, 'web')->delete($url)->assertForbidden();
+        $this->actingAs(User::factory()->create(), 'web')->delete($url)->assertForbidden();
+
+        $this->assertDatabaseHas('orders', ['id' => $order->id]);
+        $this->assertDatabaseHas('order_items', ['order_id' => $order->id]);
+    }
+
+    #[RequiresPhpExtension('zip')]
+    public function test_cancelled_orders_are_removed_from_both_dashboard_excel_exports(): void
+    {
+        $okra = $this->makeProduct('Okra');
+        $sayote = $this->makeProduct('Sayote');
+        $cancelled = $this->placeOrder('2026-10-01 08:00', [[$okra, '1 kg', 2]]);
+        $this->placeOrder('2026-10-01 09:00', [[$sayote, '1 kg', 1]]);
+
+        $this->actingAs($this->admin)->delete(route('admin.orders.destroy', $cancelled))->assertRedirect();
+
+        $summary = $this->get(route('admin.order-summary.export', ['date' => '2026-10-01']))->assertOk();
+        $rows = $this->sheetRows($summary->streamedContent());
+        $this->assertContains(['Orders received: 1'], $rows);
+        $this->assertContains(['Sayote', '1 kg'], $rows);
+        $this->assertStringNotContainsString('Okra', json_encode($rows));
+
+        $people = $this->get(route('admin.orders-per-person.export', ['date' => '2026-10-01']))->assertOk();
+        $rows = $this->sheetRows($people->streamedContent());
+        $this->assertContains(['Orders received: 1 from 1 person'], $rows);
+        $this->assertSame(['TOTAL FOR THE DAY', '', '', '₱100'], end($rows));
+        $this->assertStringNotContainsString('Okra', json_encode($rows));
+    }
+
+    public function test_orders_from_the_same_name_and_number_are_packed_as_one_person(): void
     {
         $sayote = $this->makeProduct('Sayote');
         $okra = $this->makeProduct('Fresh Okra');
@@ -314,6 +429,27 @@ class AdminDashboardTest extends TestCase
             'Sayote', '1 kg', '3', '₱300',
             'TOTAL', '₱400',
         ])->assertDontSeeText('juan dela cruz')->assertDontSeeText('2. ');
+    }
+
+    public function test_different_names_sharing_a_phone_number_have_separate_cards_and_export_checkboxes(): void
+    {
+        $product = $this->makeProduct('Sayote');
+        $panda = $this->placeOrder('2026-10-01 08:00', [[$product, '1 kg', 1]], ['full_name' => 'Engr. Panda']);
+        $anthony = $this->placeOrder('2026-10-01 09:00', [[$product, '1 kg', 2]], ['full_name' => 'anthony']);
+        $repeat = $this->placeOrder('2026-10-01 10:00', [[$product, '1 kg', 3]], [
+            'full_name' => '  ANTHONY  ', 'contact_number' => '0917-123-4567',
+        ]);
+
+        $response = $this->actingAs($this->admin)
+            ->get(route('admin.home', ['date' => '2026-10-01', 'view' => 'people']))
+            ->assertOk()->assertSeeText('Orders received: 3 from 2 people')
+            ->assertSeeText('1. Engr. Panda')->assertSeeText('2. anthony')
+            ->assertSee('name="people[]" value="'.$panda->id.'"', false)
+            ->assertSee('name="people[]" value="'.$anthony->id.'"', false)
+            ->assertDontSee('name="people[]" value="'.$repeat->id.'"', false)
+            ->assertDontSeeText('Engr. Panda / anthony');
+
+        $this->assertSame(2, substr_count($response->getContent(), 'name="people[]"'));
     }
 
     public function test_switching_views_and_days_keeps_the_other_choice(): void

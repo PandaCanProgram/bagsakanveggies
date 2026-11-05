@@ -54,7 +54,7 @@ class PurchaseOrderNameTest extends TestCase
     }
 
     #[RequiresPhpExtension('zip')]
-    public function test_the_named_purchase_is_used_in_excel_forms_with_safe_text_and_no_po_number_as_its_heading(): void
+    public function test_the_named_purchase_is_used_in_excel_details_with_safe_text_and_no_po_number_as_its_heading(): void
     {
         $order = PurchaseOrder::factory()->hasItems(1)->create(['name' => 'Barrio Fiesta & Co.', 'purchase_date' => '2026-11-02']);
         $response = $this->actingAs($order->creator, 'web')->get(route('admin.purchase-orders.export', [
@@ -64,12 +64,10 @@ class PurchaseOrderNameTest extends TestCase
         file_put_contents($path, $response->streamedContent());
         $zip = new ZipArchive;
         $zip->open($path);
-        foreach ([2, 3, 4] as $number) {
-            $xml = $zip->getFromName('xl/worksheets/sheet'.$number.'.xml');
-            $this->assertStringContainsString('Barrio Fiesta &amp; Co.', $xml);
-            $this->assertStringNotContainsString($order->number(), $xml);
-            $this->assertInstanceOf(SimpleXMLElement::class, simplexml_load_string($xml));
-        }
+        $xml = $zip->getFromName('xl/worksheets/sheet1.xml');
+        $this->assertStringContainsString('Barrio Fiesta &amp; Co.', $xml);
+        $this->assertStringNotContainsString($order->number(), $xml);
+        $this->assertInstanceOf(SimpleXMLElement::class, simplexml_load_string($xml));
         $zip->close();
         unlink($path);
     }

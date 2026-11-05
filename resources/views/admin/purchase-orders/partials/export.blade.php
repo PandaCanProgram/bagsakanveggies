@@ -7,7 +7,7 @@
                     <h2 id="purchase-export-title" class="a-section-title">Choose purchases to export</h2>
                     <button type="button" class="a-icon-btn" @click="$refs.dialog.close()" aria-label="Close purchase selection"><x-admin.icon name="x" /></button>
                 </div>
-                <p id="purchase-export-description" class="a-muted">{{ $day?->format('F j, Y') ?? 'All purchase dates' }}. Select a purchaser or individual purchases for the picking and packing forms. Prices use the admin estimate.</p>
+                <p id="purchase-export-description" class="a-muted">{{ $day?->format('F j, Y') ?? 'All purchase dates' }}. Select a purchaser or individual purchases to download their purchase order details.</p>
                 <form method="GET" action="{{ route('admin.purchase-orders.export') }}" @submit="selected.length ? $refs.dialog.close() : $event.preventDefault()">
                     @if ($day)<input type="hidden" name="date" value="{{ $day->toDateString() }}">@else<input type="hidden" name="all_dates" value="1">@endif
                     <input type="hidden" name="mode" value="purchasers">
